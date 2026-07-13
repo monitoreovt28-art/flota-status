@@ -1,0 +1,428 @@
+{
+  "_instrucciones": [
+    "CÓMO EDITAR ESTE ARCHIVO:",
+    "1. Cada línea representa una ubicación: \"NOMBRE\": [latitud, longitud]",
+    "2. El NOMBRE debe estar en MAYÚSCULAS, exactamente igual a como aparece en la columna UBICACIÓN del Excel de status.",
+    "3. Las coordenadas se obtienen desde Google Maps: click derecho en el punto → copiar las coordenadas (lat, lng).",
+    "4. Para AGREGAR un lugar nuevo: agregá una línea al final antes del último } con el formato: \"NOMBRE\": [lat, lng]",
+    "5. Para CORREGIR una coordenada: buscá el nombre y cambiá los números de lat y lng.",
+    "6. Guardá el archivo (Commit changes en GitHub) y en 1-2 minutos el mapa ya toma la corrección.",
+    "IMPORTANTE: no borres ni modifiques esta sección _instrucciones, y respetá las comas entre líneas."
+  ],
+  "ADUANA GUEMES": [
+    -24.6833,
+    -65.05
+  ],
+  "ADUANA GUEMES.": [
+    -24.6833,
+    -65.05
+  ],
+  "AGUAS VERDES": [
+    -23.531519,
+    -70.393208
+  ],
+  "AGUAS VERDES SUR": [
+    -28.975674,
+    -70.931056
+  ],
+  "ANTOFAGASTA": [
+    -23.6509,
+    -70.3975
+  ],
+  "ANTUMALEN": [
+    -23.440358,
+    -70.1487879
+  ],
+  "BAQUEDANO": [
+    -23.3333902,
+    -69.8423458
+  ],
+  "BAQUEDANO - LA NEGRA": [
+    -23.54,
+    -70.05
+  ],
+  "CALAMA": [
+    -22.4544,
+    -68.9294
+  ],
+  "CALAMA-SIERRA GORDA": [
+    -22.67,
+    -69.13
+  ],
+  "CAMPANARIO": [
+    -30.3220985,
+    -69.2097419
+  ],
+  "CAMPO QUIJANO-PREDIO PALPALA": [
+    -24.37,
+    -65.35
+  ],
+  "CARGA DHL MEMBRANAS": [
+    -23.639206,
+    -70.293613
+  ],
+  "CASARES": [
+    -35.1167,
+    -61.1667
+  ],
+  "CAUCETE": [
+    -31.6541691,
+    -68.2852783
+  ],
+  "CAUCHARI": [
+    -23.5667,
+    -66.6167
+  ],
+  "CERES": [
+    -29.8817186,
+    -61.9460573
+  ],
+  "CHAÑARAL": [
+    -26.3458,
+    -70.6239
+  ],
+  "CHUMBICHA": [
+    -28.8581402,
+    -66.2310587
+  ],
+  "COPIAPO": [
+    -27.375,
+    -70.3289
+  ],
+  "COQUIMBO": [
+    -29.9533,
+    -71.3436
+  ],
+  "DHL MEMBRANAS": [
+    -23.639206,
+    -70.293613
+  ],
+  "EL GALPON": [
+    -25.3507574,
+    -64.4467469
+  ],
+  "EL TUNAL": [
+    -26.93,
+    -65.23
+  ],
+  "FAIMALLA": [
+    -26.8,
+    -65.1333
+  ],
+  "FENIX": [
+    -25.4909619,
+    -67.1129428
+  ],
+  "FENIX-POCITOS": [
+    -25.4909619,
+    -67.1129428
+  ],
+  "GALPON": [
+    -24.27,
+    -65.22
+  ],
+  "GEMAR": [
+    -24.0,
+    -65.9
+  ],
+  "GEMAR-POCITOS": [
+    -24.0,
+    -65.9
+  ],
+  "GOB. GARMENDIA": [
+    -26.1167,
+    -64.6167
+  ],
+  "IQUIQUE": [
+    -20.2208,
+    -70.1431
+  ],
+  "J. V GONZALEZ": [
+    -25.1167,
+    -64.45
+  ],
+  "J.V GONZALEZ": [
+    -25.1167,
+    -64.45
+  ],
+  "J.V. GONZALEZ.": [
+    -25.1167,
+    -64.45
+  ],
+  "J.V.GONZALEZ-EL GALPON": [
+    -25.2,
+    -64.55
+  ],
+  "JAMA": [
+    -23.2167,
+    -67.3333
+  ],
+  "LA COCHA": [
+    -27.7667,
+    -65.5667
+  ],
+  "LA LIGUA": [
+    -32.4498524,
+    -71.2320966
+  ],
+  "LA NEGRA": [
+    -23.7016038,
+    -70.2834997
+  ],
+  "LA RIOJA": [
+    -29.4131,
+    -66.8558
+  ],
+  "LA SERENA": [
+    -29.9069,
+    -71.2469
+  ],
+  "LOS VILOS": [
+    -31.915,
+    -71.5058
+  ],
+  "MANTOS BLANCOS": [
+    -23.4538791,
+    -70.1251313
+  ],
+  "MEJILLONES": [
+    -23.0989,
+    -70.4453
+  ],
+  "MENDOZA": [
+    -32.8895,
+    -68.8458
+  ],
+  "METAN": [
+    -25.4958347,
+    -64.9728778
+  ],
+  "NOGALES": [
+    -32.7333,
+    -71.2167
+  ],
+  "NOVICIADO": [
+    -33.3833,
+    -70.75
+  ],
+  "OF.VICTORIA-IQUIQUE": [
+    -20.2208,
+    -70.1431
+  ],
+  "OFICINA VICTORIA": [
+    -20.65,
+    -69.75
+  ],
+  "ORICA": [
+    -23.65,
+    -70.37
+  ],
+  "PALPALA": [
+    -24.275448,
+    -65.2045997
+  ],
+  "PAPOSO": [
+    -25.0042,
+    -70.46572
+  ],
+  "PATQUIA": [
+    -30.0441432,
+    -66.8814385
+  ],
+  "POCITOS": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS- FENIX": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS- JAMA": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS-FENIX": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS-FENIX KM 85": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS-JAMA": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "POCITOS-PALPALA": [
+    -24.31,
+    -65.8
+  ],
+  "POCITOS-SAL DE VIDA": [
+    -24.3733166,
+    -66.9918884
+  ],
+  "PREDIO ANTOFA.": [
+    -23.5363884,
+    -70.3856941
+  ],
+  "PREDIO ANTOFAGASTA": [
+    -23.5363884,
+    -70.3856941
+  ],
+  "PREDIO PALPALA": [
+    -24.275448,
+    -65.2045997
+  ],
+  "PREDIO SJ": [
+    -31.5375,
+    -68.5364
+  ],
+  "PUERTO ANGAMOS": [
+    -23.0833,
+    -70.45
+  ],
+  "PURMAMARCA": [
+    -23.75,
+    -65.4833
+  ],
+  "R. DE LA FRONTERA": [
+    -25.7992463,
+    -64.9736493
+  ],
+  "R. FRONTERA": [
+    -25.7992463,
+    -64.9736493
+  ],
+  "R. FRONTERA-EL GALPON": [
+    -25.1,
+    -64.8
+  ],
+  "RAFAELA": [
+    -31.2909106,
+    -61.3983571
+  ],
+  "RINCON": [
+    -24.0151813,
+    -67.0364851
+  ],
+  "RINCON-SICO": [
+    -24.0151813,
+    -67.0364851
+  ],
+  "ROSARIO FRONTERA": [
+    -25.7992463,
+    -64.9736493
+  ],
+  "RUNQUE": [
+    -33.2,
+    -70.9
+  ],
+  "RUTA 70-POCITOS": [
+    -24.0,
+    -66.5
+  ],
+  "SAL DE VIDA": [
+    -25.3634344,
+    -66.8527908
+  ],
+  "SALTA": [
+    -24.7821,
+    -65.4232
+  ],
+  "SAN JUAN": [
+    -31.5375,
+    -68.5364
+  ],
+  "SAN PEDRO": [
+    -22.9145232,
+    -68.1914889
+  ],
+  "SAN PEDRO DE ATACAMA": [
+    -22.9145232,
+    -68.1914889
+  ],
+  "SANTIAGO": [
+    -33.4489,
+    -70.6693
+  ],
+  "SANTIAGO DE CHILE": [
+    -33.4489,
+    -70.6693
+  ],
+  "SANTIAGO DEL ESTERO": [
+    -27.7951,
+    -64.2615
+  ],
+  "SIERRA GORDA": [
+    -22.8909304,
+    -69.3195724
+  ],
+  "SPA": [
+    -22.9145232,
+    -68.1914889
+  ],
+  "STGO": [
+    -33.4489,
+    -70.6693
+  ],
+  "STGO DEL ESTERO": [
+    -27.7951,
+    -64.2615
+  ],
+  "STGO-ANTOFA": [
+    -28.0,
+    -70.5
+  ],
+  "SUNCHALES": [
+    -30.9447569,
+    -61.5597844
+  ],
+  "SUSQUES": [
+    -23.3833,
+    -66.5
+  ],
+  "SUSQUES-PALPALA": [
+    -23.72,
+    -65.86
+  ],
+  "SUSQUES-PURMAMARCA": [
+    -23.57,
+    -65.99
+  ],
+  "SUSQUES-RINCON": [
+    -23.84,
+    -66.75
+  ],
+  "TALTAL": [
+    -25.41,
+    -70.4889
+  ],
+  "TILCARA": [
+    -23.5667,
+    -65.3833
+  ],
+  "TOCOPILLA": [
+    -22.092,
+    -70.1979
+  ],
+  "TUCUMAN": [
+    -26.8082848,
+    -65.2175903
+  ],
+  "USNO": [
+    -31.5333,
+    -68.55
+  ],
+  "VALLENAR": [
+    -28.5762,
+    -70.7594
+  ],
+  "VOLCAN": [
+    -23.9167,
+    -65.4667
+  ],
+  "YALA": [
+    -24.0833,
+    -65.35
+  ]
+}

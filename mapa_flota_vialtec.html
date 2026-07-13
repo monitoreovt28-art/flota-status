@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mapa de Flota Vialtec</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg:#0f1419; --panel:#171d26; --panel2:#1d2430; --border:#2a3340;
+    --text:#e8edf3; --text-dim:#9aa7b8; --accent:#4f9cf9;
+    --danger:#f06464; --ok:#3ecf8e; --label-bg:rgba(20,24,31,0.95); --label-text:#e8edf3;
+  }
+  body.light{
+    --bg:#f4f5f7; --panel:#ffffff; --panel2:#eef0f3; --border:#dde1e7;
+    --text:#1a1f29; --text-dim:#6b7585; --accent:#2f6fe0;
+    --danger:#d9362c; --ok:#1d8a52; --label-bg:rgba(255,255,255,0.96); --label-text:#1a1f29;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+  #app{display:flex;height:100vh;}
+
+  /* SIDEBAR */
+  #sidebar{width:380px;min-width:340px;background:var(--panel);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;overflow:hidden;transition:width .2s,min-width .2s;}
+  #sidebar.collapsed{width:0;min-width:0;border-right:none;}
+  #sidebar-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  #sidebar-header h1{font-size:16px;margin:0 0 2px;font-weight:600;}
+  #sidebar-header .sub{font-size:12px;color:var(--text-dim);}
+  #btnToggleSidebar{background:var(--panel);border:1px solid var(--border);border-radius:6px;
+    color:var(--text);cursor:pointer;padding:4px 8px;font-size:16px;line-height:1;flex-shrink:0;}
+  #btnToggleSidebar:hover{background:var(--panel2);}
+  #sidebarFloatBtn{display:none;position:absolute;top:50%;left:0;transform:translateY(-50%);
+    z-index:600;background:var(--panel);border:1px solid var(--border);border-radius:0 8px 8px 0;
+    padding:14px 8px;font-size:18px;cursor:pointer;color:var(--text);pointer-events:auto;
+    writing-mode:horizontal-tb;border-left:none;}
+  #sidebarFloatBtn:hover{background:var(--panel2);}
+  .sidebar-collapsed #sidebarFloatBtn{display:block;}
+  #sidebar-tabs{display:flex;border-bottom:1px solid var(--border);}
+  .tab-btn{flex:1;padding:10px;background:none;border:none;color:var(--text-dim);font-size:13px;
+    cursor:pointer;border-bottom:2px solid transparent;}
+  .tab-btn.active{color:var(--text);border-bottom-color:var(--accent);}
+  .tab-panel{display:none;flex:1;overflow-y:auto;padding:14px 18px;}
+  .tab-panel.active{display:flex;flex-direction:column;}
+
+  textarea#pasteArea{width:100%;min-height:160px;background:var(--panel2);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);font-size:12px;font-family:ui-monospace,monospace;padding:10px;resize:vertical;}
+  .hint{font-size:11px;color:var(--text-dim);margin:6px 0 12px;line-height:1.5;}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:9px 14px;font-size:13px;
+    cursor:pointer;font-weight:500;}
+  .btn:hover{opacity:.9;}
+  .btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+  .btn.danger{background:var(--danger);}
+  .btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn-row .btn{flex:1;}
+
+  select#daySelect{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:7px;padding:9px 10px;font-size:13px;margin-bottom:4px;}
+  select#daySelect option{background:var(--panel2);color:var(--text);}
+
+  #dropZone{margin-top:14px;border:1.5px dashed var(--border);border-radius:10px;padding:18px 14px;
+    text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+  #dropZone:hover, #dropZone.dragover{border-color:var(--accent);background:var(--panel2);}
+  #dropZone i{font-size:24px;color:var(--text-dim);display:block;margin-bottom:6px;}
+  #dropZone b{font-size:13px;}
+  #dropZone .sub{font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+  #fileStatus{font-size:12px;margin-top:8px;min-height:14px;}
+  #fileStatus.ok{color:var(--ok);}
+  #fileStatus.err{color:var(--danger);}
+
+  details summary::-webkit-details-marker{color:var(--text-dim);}
+
+  #unmatchedBox{margin-top:14px;border:1px solid var(--danger);border-radius:8px;padding:10px;background:#2a1818;display:none;}
+  #unmatchedBox h3{font-size:12px;margin:0 0 8px;color:var(--danger);}
+  .unmatched-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;}
+  .unmatched-row span{flex:1;color:var(--text);}
+  .unmatched-row input{width:70px;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:4px;padding:4px 6px;font-size:11px;}
+
+  #statusMsg{font-size:12px;margin-top:10px;min-height:16px;}
+  #statusMsg.ok{color:var(--ok);}
+  #statusMsg.err{color:var(--danger);}
+
+  /* Filters tab */
+  .filter-section{margin-bottom:18px;}
+  .filter-section-title{display:flex;justify-content:space-between;align-items:center;
+    font-size:13px;font-weight:600;margin-bottom:6px;}
+  .link-btn{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;}
+  .link-btn:hover{text-decoration:underline;}
+  #legendList, #obsList{display:flex;flex-direction:column;gap:6px;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:12.5px;
+    padding:5px 6px;border-radius:6px;}
+  .legend-item:hover{background:var(--panel2);}
+  .legend-item.off{opacity:.4;}
+  .legend-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+  .legend-item .count{margin-left:auto;color:var(--text-dim);font-size:11px;flex-shrink:0;}
+  .legend-color-input{width:18px;height:18px;border:none;padding:0;background:none;cursor:pointer;flex-shrink:0;}
+  .legend-label{cursor:pointer;}
+  .obs-item{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;
+    padding:5px 6px;border-radius:6px;}
+  .obs-item:hover{background:var(--panel2);}
+  .obs-item.off{opacity:.4;}
+  .obs-item .obs-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .obs-item .count{margin-left:auto;color:var(--text-dim);font-size:11px;flex-shrink:0;}
+  .obs-item .check{width:14px;height:14px;border:1.5px solid var(--border);border-radius:3px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:10px;}
+  .obs-item:not(.off) .check{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  #summaryBar{padding:10px 18px;border-top:1px solid var(--border);font-size:12px;color:var(--text-dim);}
+  #summaryBar b{color:var(--text);}
+
+  /* MAP */
+  #mapWrap{flex:1;position:relative;}
+  #map{width:100%;height:100%;background:#0a0d12;}
+  body.light #map{background:#dde3ea;}
+  .truck-label{
+    background:var(--label-bg);border:1px solid var(--border);border-radius:6px;
+    padding:3px 7px;font-size:11px;color:var(--label-text);white-space:nowrap;font-weight:500;
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+  }
+  .cluster-badge{
+    background:var(--panel);border:2px solid var(--accent);border-radius:50%;
+    width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:600;color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.4);
+    position:relative;
+  }
+  .place-label{
+    background:transparent;color:var(--label-text);font-size:11px;font-weight:600;
+    white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6);
+    pointer-events:none;letter-spacing:.2px;
+  }
+  body.light .place-label{
+    text-shadow:0 1px 2px rgba(255,255,255,.9), 0 0 5px rgba(255,255,255,.8);
+  }
+  .dir-arrow{font-weight:700;display:inline-block;margin-right:3px;}
+  .dir-arrow.dir-N{color:#60A5FA;}
+  .dir-arrow.dir-S{color:#F59E0B;}
+  .dir-arrow.dir-E{color:#34D399;}
+  .dir-arrow.dir-W{color:#A78BFA;}
+  .cluster-badge .dir-arrow{position:absolute;top:-6px;right:-6px;background:var(--panel);
+    border-radius:50%;width:16px;height:16px;font-size:11px;line-height:16px;text-align:center;
+    border:1px solid var(--border);margin:0;}
+  .leaflet-popup-content-wrapper{background:var(--panel);color:var(--text);border-radius:8px;}
+  .leaflet-popup-tip{background:var(--panel);}
+  .popup-truck-list{font-size:12px;max-height:240px;overflow-y:auto;}
+  .popup-truck-list table{width:100%;border-collapse:collapse;}
+  .popup-truck-list td{padding:4px 6px;border-bottom:1px solid var(--border);}
+  .popup-truck-list tr.newly-arrived td{background:rgba(251,191,36,.13);border-bottom-color:rgba(251,191,36,.2);}
+  .popup-truck-list tr.newly-arrived td:first-child{border-left:3px solid #FBBF24;}
+  .newly-arrived-badge{font-size:10px;font-weight:600;color:#FBBF24;margin-left:4px;vertical-align:middle;}
+  .popup-truck-list .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .popup-loc-title{font-weight:600;font-size:13px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+
+  #emptyState{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;
+    color:var(--text-dim);font-size:14px;pointer-events:none;}
+  #emptyState i{font-size:40px;display:block;margin-bottom:10px;opacity:.4;}
+
+  #topbar{position:absolute;top:14px;left:14px;right:14px;display:flex;gap:10px;align-items:flex-start;
+    justify-content:space-between;pointer-events:none;z-index:500;}
+  #dateBadge{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 14px;
+    font-size:13px;font-weight:600;pointer-events:auto;color:var(--text);}
+  #dateBadge .lbl{font-size:10px;color:var(--text-dim);font-weight:400;display:block;}
+  #themeToggle{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:8px 12px;font-size:13px;font-weight:500;color:var(--text);pointer-events:auto;
+    cursor:pointer;display:flex;align-items:center;gap:6px;}
+  #themeToggle:hover{background:var(--panel2);}
+  #themeToggle i{font-size:16px;}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div>
+        <h1>Mapa de flota</h1>
+        <div class="sub">Vialtec S.A. — Status diario</div>
+      </div>
+      <button id="btnToggleSidebar" title="Minimizar panel">◀</button>
+    </div>
+    <div id="sidebar-tabs">
+      <button class="tab-btn active" data-tab="data">Cargar datos</button>
+      <button class="tab-btn" data-tab="filters">Filtros / colores</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-data">
+      <label style="font-size:12px;color:var(--text-dim);margin-bottom:6px;display:block;">
+        Día a mostrar
+      </label>
+      <select id="daySelect"></select>
+      <div class="hint" id="dataSourceHint">Datos cargados desde el Excel de status.</div>
+
+      <div style="margin-top:4px;">
+        <label style="font-size:12px;color:var(--text-dim);margin-bottom:6px;display:block;">
+          Filtrar por unidad
+        </label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select id="unitFilter"
+            style="flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+            border-radius:7px;padding:8px 10px;font-size:13px;"></select>
+          <button id="btnClearUnit" title="Ver todas las unidades"
+            style="background:var(--panel2);border:1px solid var(--border);color:var(--text-dim);
+            border-radius:7px;padding:8px 10px;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>
+        </div>
+        <div id="unitFilterStatus" style="font-size:11px;color:var(--text-dim);margin-top:4px;min-height:14px;"></div>
+      </div>
+
+      <div id="dropZone">
+        <i class="ti ti-file-upload"></i>
+        <div><b>Subí el Excel actualizado</b></div>
+        <div class="sub">Arrastrá el archivo Status acá, o hacé click para elegirlo<br>(se lee en tu navegador, no se envía a ningún servidor)</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+      </div>
+      <div id="fileStatus"></div>
+
+      <div id="statusMsg"></div>
+      <div id="unmatchedBox">
+        <h3>Ubicaciones no reconocidas — asignales coordenadas</h3>
+        <div id="unmatchedList"></div>
+        <button class="btn" id="btnSaveUnmatched" style="margin-top:6px;width:100%;">Guardar coordenadas y reintentar</button>
+      </div>
+
+      <details style="margin-top:16px;">
+        <summary style="font-size:12px;color:var(--text-dim);cursor:pointer;">Pegar datos manualmente (alternativa)</summary>
+        <textarea id="pasteArea" placeholder="Pegá acá el rango de la hoja Excel (Ctrl+V)&#10;&#10;Columnas esperadas: VEHÍCULO  SEMI  CHOFER  ESTADO  [PERNOCTE]  UBICACIÓN  ..." style="margin-top:8px;"></textarea>
+        <div class="btn-row">
+          <button class="btn secondary" id="btnProcess">Generar desde texto pegado</button>
+          <button class="btn secondary" id="btnClear">Limpiar</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="tab-panel" id="tab-filters">
+      <div class="filter-section">
+        <div class="filter-section-title">
+          <span>Por carga (Estado)</span>
+          <div style="display:flex;gap:8px;">
+            <button class="link-btn" id="btnHideEstado">ocultar todo</button>
+            <button class="link-btn" id="btnResetEstado">mostrar todo</button>
+          </div>
+        </div>
+        <div class="hint" style="margin:0 0 10px;">Click en el nombre para mostrar/ocultar. Click en el color para cambiarlo.</div>
+        <div id="legendList"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">
+          <span>Por observación</span>
+          <div style="display:flex;gap:8px;">
+            <button class="link-btn" id="btnHideObs">ocultar todo</button>
+            <button class="link-btn" id="btnResetObs">mostrar todo</button>
+          </div>
+        </div>
+        <div class="hint" style="margin:0 0 10px;">Filtra por el texto exacto de la columna Observaciones (ej. "Carga Amonio 24-06").</div>
+        <div id="obsList"></div>
+      </div>
+    </div>
+
+    <div id="summaryBar">
+      <div style="display:flex;justify-content:space-between;width:100%;">
+        <span>Camiones: <b id="sumTrucks">0</b></span>
+        <span>Ubicaciones: <b id="sumLocs">0</b></span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;display:flex;flex-wrap:wrap;gap:10px;">
+        <span><span class="dir-arrow dir-E">→</span> hacia Jama/Palpala</span>
+        <span><span class="dir-arrow dir-W">←</span> hacia Antofagasta</span>
+        <span><span class="dir-arrow dir-S">↓</span> hacia Fenix/Guemes</span>
+        <span><span class="dir-arrow dir-N">↑</span> hacia Jama/Palpala</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="mapWrap">
+    <button id="sidebarFloatBtn" title="Mostrar panel">▶</button>
+    <div id="topbar">
+      <div id="dateBadge">
+        <span class="lbl">Foto del día</span>
+        <span id="dateBadgeText">—</span>
+      </div>
+      <button id="themeToggle"><i class="ti ti-sun"></i><span id="themeToggleLabel">Modo claro</span></button>
+    </div>
+    <div id="map"></div>
+    <div id="emptyState">
+      <i class="ti ti-truck"></i>
+      Pegá los datos de la planilla Estatus<br>para ver los camiones en el mapa
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+
+window.EMBEDDED_DATA = {"22-06-2026":[{"vehiculo":"","semi":"445-PXPB85","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"443-PXPB78","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"444-PXPB79","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"412 - JN9182","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-SEMI BLOQUEADO (Livent, SDJ, SDV)"},{"vehiculo":"305 - HSHS22","semi":"417 - JP2222","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-SIN CHOFER"},{"vehiculo":"303 - HSHS20","semi":"410 - GRGJ73","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO  Hasta 22-06  (caliper)"},{"vehiculo":"310 - PLFK15","semi":"415 - JP2220","chofer":"ANDRADE","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO Hasta 22-06 (Anomalia motor)/NO- DESCANSO SOLICITADO HASTA 25-06"},{"vehiculo":"311 - PLFK16","semi":"403 - GRDP98","chofer":"NUÑEZ","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO Hasta 24-06"},{"vehiculo":"106 - ONK265","semi":"212-  NFS837","chofer":"LUNA","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"TOCOPILLA","obs":"CARGA SODIO 23-06"},{"vehiculo":"304 - HSHS21","semi":"413 - JN9183","chofer":"SILVA","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"TOCOPILLA","obs":"CARGA SODIO 23-06"},{"vehiculo":"111 - AE289ZC","semi":"208-  KGA101","chofer":"GUTIERREZ A.","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"MEJILLONES","obs":"CARGA AZUFRE 22-06"},{"vehiculo":"308 - JFTH64","semi":"406 - GRDR11","chofer":"GUITIAN H.","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 22-06"},{"vehiculo":"322 - SGPW83","semi":"418 - PWYS11","chofer":"VARGAS","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 22-06"},{"vehiculo":"319 - SDSV71","semi":"421 - PWYS14","chofer":"LOPEZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 22-06"},{"vehiculo":"340- VBZK27","semi":"442-  PXJD98","chofer":"PEREIRA F.","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"LA NEGRA","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 22-06"},{"vehiculo":"112 - AE289ZD","semi":"216 -AF337ML","chofer":"ELIAS","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"LA NEGRA","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 22-06"},{"vehiculo":"327 - THYZ81","semi":"427 - PXDW44","chofer":"GUTIERREZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"LA NEGRA","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 22-06"},{"vehiculo":"115- AH353HJ","semi":"229-AI140DA","chofer":"BURGOS","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 22-06"},{"vehiculo":"314 - PLFK19","semi":"414 - JP2219","chofer":"FAUNDEZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 22-06"},{"vehiculo":"333- VBZK25","semi":"440-  PXJS12","chofer":"SORIANO","estado":"VACIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"PREDIO ANTOFA.","obs":"CARGA DHL 23-06"},{"vehiculo":"338- VBZK22","semi":"437-  PXJS13","chofer":"GUZMAN","estado":"VACIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"PREDIO ANTOFA.","obs":"CARGA DHL 23-06"},{"vehiculo":"339- VBZK24","semi":"439-  PXJD67","chofer":"MACIAS","estado":"VACIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"PREDIO ANTOFA.","obs":"CARGA DHL 23-06"},{"vehiculo":"326 - THZB19","semi":"426 - PXDW46","chofer":"MUÑOZ","estado":"VACIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"ANGAMOS","obs":"CARGA DHL 23-06"},{"vehiculo":"118-  AH670JI","semi":"217 - AF374EP","chofer":"GUITIAN","estado":"VACIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"ANGAMOS","obs":"CARGA DHL 23-06"},{"vehiculo":"116- AH511JN","semi":"219-  AF374EM","chofer":"CORDOBA","estado":"VACIO","ubicacion":"JAMA","pernocte":"SUSQUES","diaSgte":"ANGAMOS","obs":"CARGA DHL 23-06"},{"vehiculo":"315 - PLFK26","semi":"416-  JP2221","chofer":"TEJERINA","estado":"SODA SDV","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"336- VBZK19","semi":"441-  PXJD96","chofer":"ARJONA","estado":"SODA SDV","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"324 - SGPW85","semi":"424 - PWZB10","chofer":"QUISPE","estado":"SODA SDV","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"309 - PLFK14","semi":"409 - GRGJ70","chofer":"MAIZARES","estado":"LITIO","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"JAMA","obs":"CARGO SODA RT 15-06"},{"vehiculo":"316 - PLFK27","semi":"408 - GRGJ69","chofer":"CHICA","estado":"LITIO","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"JAMA","obs":"CARGO SODA RT 15-06"},{"vehiculo":"307 - JFTH63","semi":"405- GRDR10","chofer":"CHOCALA","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 18-06"},{"vehiculo":"323 - SGPW84","semi":"423 - PWYS16","chofer":"ALANIS","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 18-06"},{"vehiculo":"325 - SGPW86","semi":"419 - PWYS12","chofer":"GERONIMO","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 18-06"},{"vehiculo":"117- AH452VM","semi":"215- AF337MN","chofer":"GONZALEZ","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 18-06"},{"vehiculo":"113 - AE289ZE","semi":"220 -AF374EN","chofer":"ARAMAYO O.","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 18-06"},{"vehiculo":"328 - THYZ92","semi":"432- PWZB11","chofer":"MOLINA","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"FENIX","obs":"CARGO SODA RT 16-06"},{"vehiculo":"320 - SDSV72","semi":"420 - PWYS13","chofer":"ARAMAYO A.","estado":"VACIO","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"RETORNO JUJUY DE SODA OW"},{"vehiculo":"341- VBZK28","semi":"438-  PXJD99","chofer":"MORALES","estado":"VACIO","ubicacion":"VOLCAN","pernocte":"VOLCAN","diaSgte":"PREDIO PALPALA","obs":"RETORNO JUJUY DE SODA OW"},{"vehiculo":"313 - PLFK18","semi":"404 - GRDP99","chofer":"CINCINI","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"RETORNO JUJUY DE SODA OW"},{"vehiculo":"318 - SDSV69","semi":"422  -PWYS15","chofer":"MARTINEZ L.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"331 - THYZ99","semi":"431 - PXDW47","chofer":"SOLDEVILA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"109 - AD443FG","semi":"218 - AF374EL","chofer":"RUIZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"317 - SDSV68","semi":"430 - PWZB13","chofer":"SAWICKI","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"302 - HSHS19","semi":"407-  GRGJ65","chofer":"ORTIZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"335- VBZK26","semi":"436-  PXJD97","chofer":"MIRANDA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"329 - THYZ97","semi":"429 - PXDW45","chofer":"MARTINEZ R.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"321 - SDSV80","semi":"425-  PWZB12","chofer":"NIETO","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"334- VBZK20","semi":"434-  PXJS10","chofer":"CHOROLQUE","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"337- VBZK21","semi":"435-  PXJS11","chofer":"CARRIZO J.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"332- VBZK23","semi":"433-  PXJD92","chofer":"BACA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"330 - THZB11","semi":"428- PXDW23","chofer":"HERRERA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO/NO-DESCANSO SOLICITADO HASTA 26-06"},{"vehiculo":"119- AH771HG","semi":"214-AF337MK","chofer":"EGUIBAR","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-RENOVACION DE LICENCIA"},{"vehiculo":"107 - NAK810","semi":"211-  LUB839","chofer":"MACIEL","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-UNIDAD DE BACK UP/ CHOFER CON LICENCIA MEDICA"},{"vehiculo":"110 - AE289ZB","semi":"222- AF337MM","chofer":"SANCHEZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO (Inyectores)/ CARGA AMONIO 24-06"},{"vehiculo":"000- AF689DH","semi":"","chofer":"MIGUEL","estado":"GUIA","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":""},{"vehiculo":"108 - AD429MP","semi":"228 - AF741MU","chofer":"MEDINA","estado":"VACIO","ubicacion":"J. V GONZALEZ","pernocte":"J.V GONZALEZ","diaSgte":"GALPON","obs":"CARGA ISO 22-06"},{"vehiculo":"114- AH139KQ","semi":"223-AF689DU","chofer":"PACHECO","estado":"ISO","ubicacion":"FERNANDEZ","pernocte":"FERNANDEZ","diaSgte":"RAFAELA","obs":"CARGO ISO 20-06"},{"vehiculo":"","semi":"224- AF689DX","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO-TEMA MECANICO"},{"vehiculo":"103 - JSK994","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO-SIN CHOFER"},{"vehiculo":"105 - LTO247","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO- SIN CHOFER"}],"23-06-2026":[{"vehiculo":"","semi":"440-  PXJS12","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"437-  PXJS13","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"439-  PXJD67","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"413 - JN9183","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO"},{"vehiculo":"303 - HSHS20","semi":"410 - GRGJ73","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO  Hasta 24-06  (caliper)"},{"vehiculo":"310 - PLFK15","semi":"415 - JP2220","chofer":"ANDRADE","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO Hasta 24-06 (Anomalia motor)/NO- DESCANSO SOLICITADO HASTA 25-06"},{"vehiculo":"305 - HSHS22","semi":"417 - JP2222","chofer":"CINCINI","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-DESCANSO SOLICITADO HASTA 02-07"},{"vehiculo":"106 - ONK265","semi":"212-  NFS837","chofer":"LUNA","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"TOCOPILLA","obs":"CARGA SODIO 24-06"},{"vehiculo":"304 - HSHS21","semi":"412 - JN9182","chofer":"SILVA","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"TOCOPILLA","obs":"CARGA SODIO 24-06"},{"vehiculo":"309 - PLFK14","semi":"409 - GRGJ70","chofer":"MAIZARES","estado":"LITIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PUERTO ANGAMOS","obs":"DESCARGA 24-06"},{"vehiculo":"111 - AE289ZC","semi":"208-  KGA101","chofer":"GUTIERREZ A.","estado":"AZUFRE","ubicacion":"MEJILLONES","pernocte":"MEJILLONES","diaSgte":"SAN PEDRO","obs":"CARGO AZUFRE 22-06"},{"vehiculo":"314 - PLFK19","semi":"414 - JP2219","chofer":"FAUNDEZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 23-06"},{"vehiculo":"319 - SDSV71","semi":"421 - PWYS14","chofer":"LOPEZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 23-06"},{"vehiculo":"311 - PLFK16","semi":"403 - GRDP98","chofer":"NUÑEZ","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA SDV 23-06"},{"vehiculo":"308 - JFTH64","semi":"406 - GRDR11","chofer":"GUITIAN H.","estado":"VACIO","ubicacion":"LA NEGRA","pernocte":"PREDIO ANTOFA.","diaSgte":"SAN PEDRO","obs":"CARGA SODA OW 24-06"},{"vehiculo":"326 - THZB19","semi":"426 - PXDW46","chofer":"MUÑOZ","estado":"VACIO","ubicacion":"PUERTO ANGAMOS","pernocte":"MEJILLONES","diaSgte":"SAN PEDRO","obs":"CARGA DHL 23-06"},{"vehiculo":"118-  AH670JI","semi":"217 - AF374EP","chofer":"GUITIAN","estado":"VACIO","ubicacion":"PUERTO ANGAMOS","pernocte":"MEJILLONES","diaSgte":"SAN PEDRO","obs":"CARGA DHL 23-06"},{"vehiculo":"116- AH511JN","semi":"219-  AF374EM","chofer":"CORDOBA","estado":"VACIO","ubicacion":"PUERTO ANGAMOS","pernocte":"MEJILLONES","diaSgte":"SAN PEDRO","obs":"CARGA DHL 23-06"},{"vehiculo":"333- VBZK25","semi":"445-PXPB85","chofer":"SORIANO","estado":"VACIO","ubicacion":"AGUAS VERDES","pernocte":"PREDIO ANTOFA.","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"338- VBZK22","semi":"443-PXPB78","chofer":"GUZMAN","estado":"VACIO","ubicacion":"AGUAS VERDES","pernocte":"PREDIO ANTOFA.","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"339- VBZK24","semi":"444-PXPB79","chofer":"MACIAS","estado":"VACIO","ubicacion":"AGUAS VERDES","pernocte":"PREDIO ANTOFA.","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"322 - SGPW83","semi":"418 - PWYS11","chofer":"VARGAS","estado":"SODA SDV","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"POCITOS","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"327 - THYZ81","semi":"427 - PXDW44","chofer":"GUTIERREZ","estado":"SODA SDV","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"POCITOS","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"115- AH353HJ","semi":"229-AI140DA","chofer":"BURGOS","estado":"SODA SDV","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"POCITOS","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"340- VBZK27","semi":"442-  PXJD98","chofer":"PEREIRA F.","estado":"SODA OW","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"POCITOS","obs":"CARGO SODA OW 22-06"},{"vehiculo":"112 - AE289ZD","semi":"216 -AF337ML","chofer":"ELIAS","estado":"SODA OW","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"POCITOS","obs":"CARGO SODA OW 22-06"},{"vehiculo":"316 - PLFK27","semi":"408 - GRGJ69","chofer":"CHICA","estado":"LITIO","ubicacion":"POCITOS-JAMA","pernocte":"POCITOS","diaSgte":"PUERTO ANGAMOS","obs":"CARGO SODA RT 15-06"},{"vehiculo":"328 - THYZ92","semi":"432- PWZB11","chofer":"MOLINA","estado":"LITIO","ubicacion":"POCITOS-JAMA","pernocte":"POCITOS","diaSgte":"PUERTO ANGAMOS","obs":"CARGO SODA RT 16-06"},{"vehiculo":"315 - PLFK26","semi":"416-  JP2221","chofer":"TEJERINA","estado":"SODA SDV","ubicacion":"POCITOS-SAL DE VIDA","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"336- VBZK19","semi":"441-  PXJD96","chofer":"ARJONA","estado":"SODA SDV","ubicacion":"POCITOS-SAL DE VIDA","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"324 - SGPW85","semi":"424 - PWZB10","chofer":"QUISPE","estado":"SODA SDV","ubicacion":"POCITOS-SAL DE VIDA","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 19-06"},{"vehiculo":"117- AH452VM","semi":"215- AF337MN","chofer":"GONZALEZ","estado":"VACIO","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"113 - AE289ZE","semi":"220 -AF374EN","chofer":"ARAMAYO O.","estado":"VACIO","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"325 - SGPW86","semi":"419 - PWYS12","chofer":"GERONIMO","estado":"VACIO","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"307 - JFTH63","semi":"405- GRDR10","chofer":"CHOCALA","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"323 - SGPW84","semi":"423 - PWYS16","chofer":"ALANIS","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"318 - SDSV69","semi":"422  -PWYS15","chofer":"MARTINEZ L.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"341- VBZK28","semi":"438-  PXJD99","chofer":"MORALES","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"331 - THYZ99","semi":"431 - PXDW47","chofer":"SOLDEVILA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"317 - SDSV68","semi":"430 - PWZB13","chofer":"SAWICKI","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"302 - HSHS19","semi":"407-  GRGJ65","chofer":"ORTIZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"335- VBZK26","semi":"436-  PXJD97","chofer":"MIRANDA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"329 - THYZ97","semi":"429 - PXDW45","chofer":"MARTINEZ R.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"321 - SDSV80","semi":"425-  PWZB12","chofer":"NIETO","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"334- VBZK20","semi":"434-  PXJS10","chofer":"CHOROLQUE","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"337- VBZK21","semi":"435-  PXJS11","chofer":"CARRIZO J.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"332- VBZK23","semi":"433-  PXJD92","chofer":"BACA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"320 - SDSV72","semi":"420 - PWYS13","chofer":"ARAMAYO A.","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"313 - PLFK18","semi":"404 - GRDP99","chofer":"MONTENEGRO","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"109 - AD443FG","semi":"218 - AF374EL","chofer":"RUIZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"GALPON","obs":"CARGA AMONIO 24-06"},{"vehiculo":"330 - THZB11","semi":"428- PXDW23","chofer":"HERRERA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO/NO-DESCANSO SOLICITADO HASTA 26-06"},{"vehiculo":"119- AH771HG","semi":"214-AF337MK","chofer":"EGUIBAR","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-RENOVACION DE LICENCIA"},{"vehiculo":"107 - NAK810","semi":"211-  LUB839","chofer":"MACIEL","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-UNIDAD DE BACK UP/ CHOFER CON LICENCIA MEDICA"},{"vehiculo":"110 - AE289ZB","semi":"222- AF337MM","chofer":"SANCHEZ","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO (Inyectores)/ CARGA AMONIO 24-06"},{"vehiculo":"000- AF689DH","semi":"","chofer":"MIGUEL","estado":"GUIA","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":""},{"vehiculo":"108 - AD429MP","semi":"228 - AF741MU","chofer":"MEDINA","estado":"ISO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PATQUIA","obs":"CARGO ISO 22-06"},{"vehiculo":"114- AH139KQ","semi":"223-AF689DU","chofer":"PACHECO","estado":"VACIO","ubicacion":"GALPON","pernocte":"METAN","diaSgte":"RAFAELA","obs":"CARGA ISO 23-06"},{"vehiculo":"","semi":"224- AF689DX","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"ISO"},{"vehiculo":"103 - JSK994","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO-SIN CHOFER"},{"vehiculo":"105 - LTO247","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO- SIN CHOFER"}],"24-06-2026":[{"vehiculo":"","semi":"440-  PXJS12","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"437-  PXJS13","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"439-  PXJD67","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":""},{"vehiculo":"","semi":"413 - JN9183","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO"},{"vehiculo":"303 - HSHS20","semi":"410 - GRGJ73","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO  Hasta 24-06  (caliper)"},{"vehiculo":"310 - PLFK15","semi":"415 - JP2220","chofer":"ANDRADE","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-TEMA MECANICO Hasta 24-06 (Anomalia motor)/NO- DESCANSO SOLICITADO HASTA 25-06"},{"vehiculo":"305 - HSHS22","semi":"417 - JP2222","chofer":"CINCINI","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"PREDIO ANTOFA.","obs":"NO-DESCANSO SOLICITADO HASTA 02-07"},{"vehiculo":"106 - ONK265","semi":"212-  NFS837","chofer":"LUNA","estado":"VACIO","ubicacion":"PREDIO ANTOFA.","pernocte":"PREDIO ANTOFA.","diaSgte":"TOCOPILLA","obs":"NO-TEMA MECANICO"},{"vehiculo":"304 - HSHS21","semi":"412 - JN9182","chofer":"SILVA","estado":"VACIO","ubicacion":"TOCOPILLA","pernocte":"TOCOPILLA","diaSgte":"SAN PEDRO","obs":"CARGA SODIO 24-06"},{"vehiculo":"311 - PLFK16","semi":"403 - GRDP98","chofer":"NUÑEZ","estado":"VACIO","ubicacion":"TOCOPILLA","pernocte":"TOCOPILLA","diaSgte":"SAN PEDRO","obs":"CARGA SODIO 24-06"},{"vehiculo":"309 - PLFK14","semi":"409 - GRGJ70","chofer":"MAIZARES","estado":"LITIO","ubicacion":"PUERTO ANGAMOS","pernocte":"PREDIO ANTOFA.","diaSgte":"LA NEGRA","obs":"DESCARGA HOY"},{"vehiculo":"316 - PLFK27","semi":"408 - GRGJ69","chofer":"CHICA","estado":"LITIO","ubicacion":"PUERTO ANGAMOS","pernocte":"BAQUEDANO","diaSgte":"LA NEGRA","obs":"DESCARGA HOY"},{"vehiculo":"326 - THZB19","semi":"426 - PXDW46","chofer":"MUÑOZ","estado":"CAJONES","ubicacion":"CALAMA","pernocte":"MANTOS BLANCOS","diaSgte":"POCITOS","obs":"CARGO DHL 23-06"},{"vehiculo":"118-  AH670JI","semi":"217 - AF374EP","chofer":"GUITIAN","estado":"CAJONES","ubicacion":"CALAMA","pernocte":"MANTOS BLANCOS","diaSgte":"POCITOS","obs":"CARGO DHL 23-06"},{"vehiculo":"116- AH511JN","semi":"219-  AF374EM","chofer":"CORDOBA","estado":"CAJONES","ubicacion":"CALAMA","pernocte":"MANTOS BLANCOS","diaSgte":"POCITOS","obs":"CARGO DHL 23-06"},{"vehiculo":"111 - AE289ZC","semi":"208-  KGA101","chofer":"GUTIERREZ A.","estado":"AZUFRE","ubicacion":"SAN PEDRO","pernocte":"SAN PEDRO","diaSgte":"ADUANA GUEMES","obs":"CARGO AZUFRE 22-06"},{"vehiculo":"314 - PLFK19","semi":"414 - JP2219","chofer":"FAUNDEZ","estado":"SODA SDV","ubicacion":"CALAMA","pernocte":"SIERRA GORDA","diaSgte":"POCITOS","obs":"CARGO SODA SDV 23-06"},{"vehiculo":"319 - SDSV71","semi":"421 - PWYS14","chofer":"LOPEZ","estado":"SODA SDV","ubicacion":"CALAMA","pernocte":"SIERRA GORDA","diaSgte":"POCITOS","obs":"CARGO SODA SDV 23-06"},{"vehiculo":"308 - JFTH64","semi":"406 - GRDR11","chofer":"GUITIAN H.","estado":"SODA SDV","ubicacion":"CALAMA","pernocte":"SIERRA GORDA","diaSgte":"POCITOS","obs":"CARGO SODA SDV 23-06"},{"vehiculo":"333- VBZK25","semi":"445-PXPB85","chofer":"SORIANO","estado":"VACIO","ubicacion":"VALLENAR","pernocte":"VALLENAR","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"338- VBZK22","semi":"443-PXPB78","chofer":"GUZMAN","estado":"VACIO","ubicacion":"VALLENAR","pernocte":"VALLENAR","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"339- VBZK24","semi":"444-PXPB79","chofer":"MACIAS","estado":"VACIO","ubicacion":"VALLENAR","pernocte":"VALLENAR","diaSgte":"SANTIAGO","obs":"CARGA DHL 24-06"},{"vehiculo":"328 - THYZ92","semi":"432- PWZB11","chofer":"MOLINA","estado":"LITIO","ubicacion":"JAMA","pernocte":"JAMA","diaSgte":"PUERTO ANGAMOS","obs":"CARGO SODA RT 16-06"},{"vehiculo":"325 - SGPW86","semi":"419 - PWYS12","chofer":"GERONIMO","estado":"LITIO","ubicacion":"POCITOS-JAMA","pernocte":"POCITOS","diaSgte":"PUERTO ANGAMOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"117- AH452VM","semi":"215- AF337MN","chofer":"GONZALEZ","estado":"LITIO","ubicacion":"POCITOS-JAMA","pernocte":"POCITOS","diaSgte":"PUERTO ANGAMOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"322 - SGPW83","semi":"418 - PWYS11","chofer":"VARGAS","estado":"SODA SDV","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"327 - THYZ81","semi":"427 - PXDW44","chofer":"GUTIERREZ","estado":"SODA SDV","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"115- AH353HJ","semi":"229-AI140DA","chofer":"BURGOS","estado":"SODA SDV","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"SAL DE VIDA","obs":"CARGO SODA SDV 22-06"},{"vehiculo":"340- VBZK27","semi":"442-  PXJD98","chofer":"PEREIRA F.","estado":"SODA OW","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"FENIX","obs":"CARGO SODA OW 22-06"},{"vehiculo":"112 - AE289ZD","semi":"216 -AF337ML","chofer":"ELIAS","estado":"SODA OW","ubicacion":"POCITOS","pernocte":"POCITOS","diaSgte":"FENIX","obs":"CARGO SODA OW 22-06"},{"vehiculo":"113 - AE289ZE","semi":"220 -AF374EN","chofer":"ARAMAYO O.","estado":"LITIO","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"307 - JFTH63","semi":"405- GRDR10","chofer":"CHOCALA","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"323 - SGPW84","semi":"423 - PWYS16","chofer":"ALANIS","estado":"SODA RT","ubicacion":"FENIX","pernocte":"FENIX","diaSgte":"POCITOS","obs":"CARGO SODA RT 18-06"},{"vehiculo":"315 - PLFK26","semi":"416-  JP2221","chofer":"TEJERINA","estado":"VACIO","ubicacion":"SAL DE VIDA","pernocte":"SAL DE VIDA","diaSgte":"PREDIO PALPALA","obs":"RETORNO JUJUY DE SODA SDV"},{"vehiculo":"336- VBZK19","semi":"441-  PXJD96","chofer":"ARJONA","estado":"VACIO","ubicacion":"SAL DE VIDA","pernocte":"SAL DE VIDA","diaSgte":"LA NEGRA","obs":"RETORNO ANTOFA DE SODA SDV"},{"vehiculo":"324 - SGPW85","semi":"424 - PWZB10","chofer":"QUISPE","estado":"VACIO","ubicacion":"SAL DE VIDA","pernocte":"SAL DE VIDA","diaSgte":"LA NEGRA","obs":"RETORNO ANTOFA DE SODA SDV"},{"vehiculo":"318 - SDSV69","semi":"422  -PWYS15","chofer":"MARTINEZ L.","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"341- VBZK28","semi":"438-  PXJD99","chofer":"MORALES","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"331 - THYZ99","semi":"431 - PXDW47","chofer":"SOLDEVILA","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"317 - SDSV68","semi":"430 - PWZB13","chofer":"SAWICKI","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"330 - THZB11","semi":"407-  GRGJ65","chofer":"ORTIZ","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"335- VBZK26","semi":"436-  PXJD97","chofer":"MIRANDA","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"329 - THYZ97","semi":"429 - PXDW45","chofer":"MARTINEZ R.","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"321 - SDSV80","semi":"425-  PWZB12","chofer":"NIETO","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"334- VBZK20","semi":"434-  PXJS10","chofer":"CHOROLQUE","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"337- VBZK21","semi":"435-  PXJS11","chofer":"CARRIZO J.","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"332- VBZK23","semi":"433-  PXJD92","chofer":"BACA","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"320 - SDSV72","semi":"420 - PWYS13","chofer":"ARAMAYO A.","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"313 - PLFK18","semi":"404 - GRDP99","chofer":"MONTENEGRO","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"109 - AD443FG","semi":"218 - AF374EL","chofer":"RUIZ","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"119- AH771HG","semi":"211-  LUB839","chofer":"SANCHEZ","estado":"VACIO","ubicacion":"GALPON","pernocte":"GALPON","diaSgte":"PREDIO PALPALA","obs":"CARGA AMONIO 24-06"},{"vehiculo":"302 - HSHS19","semi":"428- PXDW23","chofer":"HERRERA","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO/NO-DESCANSO SOLICITADO HASTA 26-06"},{"vehiculo":"110 - AE289ZB","semi":"214-AF337MK","chofer":"EGUIBAR","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-TEMA MECANICO/ RENOVACION DE LICENCIA"},{"vehiculo":"107 - NAK810","semi":"222- AF337MM","chofer":"MACIEL","estado":"VACIO","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":"NO-UNIDAD DE BACK UP/ CHOFER CON LICENCIA MEDICA"},{"vehiculo":"000- AF689DH","semi":"","chofer":"MIGUEL","estado":"GUIA","ubicacion":"PREDIO PALPALA","pernocte":"PREDIO PALPALA","diaSgte":"PREDIO PALPALA","obs":""},{"vehiculo":"108 - AD429MP","semi":"228 - AF741MU","chofer":"MEDINA","estado":"ISO","ubicacion":"CAUCETE","pernocte":"LA RIOJA","diaSgte":"CAMPANARIO","obs":"CARGO ISO 22-06"},{"vehiculo":"114- AH139KQ","semi":"223-AF689DU","chofer":"PACHECO","estado":"ISO","ubicacion":"CERES","pernocte":"CASARES","diaSgte":"RAFAELA","obs":"CARGO ISO 23-06"},{"vehiculo":"","semi":"224- AF689DX","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"ISO"},{"vehiculo":"103 - JSK994","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO-SIN CHOFER"},{"vehiculo":"105 - LTO247","semi":"","chofer":"SIN CHOFER","estado":"VACIO","ubicacion":"SAN JUAN","pernocte":"SAN JUAN","diaSgte":"SAN JUAN","obs":"NO- SIN CHOFER"}]};
+
+</script>
+<script>
+// Coordenadas base de ubicaciones operativas Vialtec (Chile - Argentina)
+// lat, lng
+window.BASE_LOCATIONS = {
+  "PREDIO ANTOFA.": [-23.5363884, -70.3856941],
+  "PREDIO ANTOFAGASTA": [-23.5363884, -70.3856941],
+  "ANTOFAGASTA": [-23.6509, -70.3975],
+  "LA NEGRA": [-23.7016038, -70.2834997],
+  "ANTUMALEN": [-23.440358, -70.1487879],
+  "CARGA DHL MEMBRANAS": [-23.639206, -70.293613],
+  "DHL MEMBRANAS": [-23.639206, -70.293613],
+  "TOCOPILLA": [-22.0920, -70.1979],
+  "MEJILLONES": [-23.0989, -70.4453],
+  "PUERTO ANGAMOS": [-23.0833, -70.4500],
+  "BAQUEDANO": [-23.3333902, -69.8423458],
+  "BAQUEDANO - LA NEGRA": [-23.5400, -70.0500],
+  "MANTOS BLANCOS": [-23.4538791, -70.1251313],
+  "SIERRA GORDA": [-22.8909304, -69.3195724],
+  "CALAMA": [-22.4544, -68.9294],
+  "CALAMA-SIERRA GORDA": [-22.6700, -69.1300],
+  "SAN PEDRO": [-22.9145232, -68.1914889],
+  "SAN PEDRO DE ATACAMA": [-22.9145232, -68.1914889],
+  "SPA": [-22.9145232, -68.1914889],
+  "CHAÑARAL": [-26.3458, -70.6239],
+  "COPIAPO": [-27.3750, -70.3289],
+  "VALLENAR": [-28.5762, -70.7594],
+  "LA SERENA": [-29.9069, -71.2469],
+  "TALTAL": [-25.4100, -70.4889],
+  "PAPOSO": [-25.00420, -70.46572],
+  "AGUAS VERDES": [-23.531519, -70.393208],
+  "AGUAS VERDES SUR": [-28.975674, -70.931056],
+  "SANTIAGO": [-33.4489, -70.6693],
+  "SANTIAGO DE CHILE": [-33.4489, -70.6693],
+  "STGO": [-33.4489, -70.6693],
+  "IQUIQUE": [-20.2208, -70.1431],
+  "OF.VICTORIA-IQUIQUE": [-20.2208, -70.1431],
+  "COQUIMBO": [-29.9533, -71.3436],
+  "OFICINA VICTORIA": [-20.6500, -69.7500],
+  "LA LIGUA": [-32.4498524, -71.2320966],
+
+  "JAMA": [-23.2167, -67.3333],
+  "VOLCAN": [-23.9167, -65.4667],
+  "SUSQUES": [-23.3833, -66.5000],
+  "SUSQUES-PURMAMARCA": [-23.5700, -65.9900],
+  "SUSQUES-RINCON": [-23.8400, -66.7500],
+  "SUSQUES-PALPALA": [-23.7200, -65.8600],
+  "POCITOS": [-24.3733166, -66.9918884],
+  "POCITOS-JAMA": [-24.3733166, -66.9918884],
+  "POCITOS- JAMA": [-24.3733166, -66.9918884],
+  "POCITOS-FENIX": [-24.3733166, -66.9918884],
+  "POCITOS- FENIX": [-24.3733166, -66.9918884],
+  "POCITOS-FENIX KM 85": [-24.3733166, -66.9918884],
+  "POCITOS-SAL DE VIDA": [-24.3733166, -66.9918884],
+  "POCITOS-PALPALA": [-24.3100, -65.8000],
+  "RUTA 70-POCITOS": [-24.0000, -66.5000],
+  "RINCON": [-24.0151813, -67.0364851],
+  "RINCON-SICO": [-24.0151813, -67.0364851],
+  "SAL DE VIDA": [-25.3634344, -66.8527908],
+  "FENIX": [-25.4909619, -67.1129428],
+  "FENIX-POCITOS": [-25.4909619, -67.1129428],
+  "CAUCHARI": [-23.5667, -66.6167],
+  "GEMAR": [-24.0000, -65.9000],
+  "GEMAR-POCITOS": [-24.0000, -65.9000],
+
+  "PREDIO PALPALA": [-24.275448, -65.2045997],
+  "PALPALA": [-24.275448, -65.2045997],
+  "PURMAMARCA": [-23.7500, -65.4833],
+  "TILCARA": [-23.5667, -65.3833],
+  "YALA": [-24.0833, -65.3500],
+  "GALPON": [-24.2700, -65.2200],
+  "CAMPO QUIJANO-PREDIO PALPALA": [-24.3700, -65.3500],
+
+  "SALTA": [-24.7821, -65.4232],
+  "ADUANA GUEMES": [-24.6833, -65.0500],
+  "ADUANA GUEMES.": [-24.6833, -65.0500],
+  "ROSARIO FRONTERA": [-25.7992463, -64.9736493],
+  "R. FRONTERA": [-25.7992463, -64.9736493],
+  "R. DE LA FRONTERA": [-25.7992463, -64.9736493],
+  "R. FRONTERA-EL GALPON": [-25.1000, -64.8000],
+  "ORICA": [-23.6500, -70.3700],
+  "J.V. GONZALEZ.": [-25.1167, -64.4500],
+  "J.V GONZALEZ": [-25.1167, -64.4500],
+  "J. V GONZALEZ": [-25.1167, -64.4500],
+  "J.V.GONZALEZ-EL GALPON": [-25.2000, -64.5500],
+  "EL GALPON": [-25.3507574, -64.4467469],
+  "GOB. GARMENDIA": [-26.1167, -64.6167],
+  "EL TUNAL": [-26.9300, -65.2300],
+
+  "TUCUMAN": [-26.8082848, -65.2175903],
+  "METAN": [-25.4958347, -64.9728778],
+  "FAIMALLA": [-26.8000, -65.1333],
+  "LA COCHA": [-27.7667, -65.5667],
+  "STGO DEL ESTERO": [-27.7951, -64.2615],
+  "SANTIAGO DEL ESTERO": [-27.7951, -64.2615],
+  "CERES": [-29.8817186, -61.9460573],
+  "RAFAELA": [-31.2909106, -61.3983571],
+  "SUNCHALES": [-30.9447569, -61.5597844],
+  "CASARES": [-35.1167, -61.1667],
+
+  "LA RIOJA": [-29.4131, -66.8558],
+  "CAUCETE": [-31.6541691, -68.2852783],
+  "PATQUIA": [-30.0441432, -66.8814385],
+  "CHUMBICHA": [-28.8581402, -66.2310587],
+  "USNO": [-31.5333, -68.5500],
+
+  "SAN JUAN": [-31.5375, -68.5364],
+  "PREDIO SJ": [-31.5375, -68.5364],
+  "CAMPANARIO": [-30.3220985, -69.2097419],
+  "MENDOZA": [-32.8895, -68.8458],
+  "NOVICIADO": [-33.3833, -70.7500],
+
+  "STGO-ANTOFA": [-28.0000, -70.5000],
+  "LOS VILOS": [-31.9150, -71.5058],
+  "NOGALES": [-32.7333, -71.2167],
+  "RUNQUE": [-33.2000, -70.9000],
+  "RINCON": [-22.4500, -65.9000],
+  "RINCON-SICO": [-24.0000, -67.7000]
+};
+
+window.DEFAULT_STATE_COLORS = {
+  "VACIO": "#9CA3AF",
+  "LITIO": "#A78BFA",
+  "SODIO": "#F472B6",
+  "SODA": "#4ADE80",
+  "SODA SDV": "#34D399",
+  "SODA OW": "#22C55E",
+  "SODA RT": "#16A34A",
+  "AMONIO": "#60A5FA",
+  "AZUFRE": "#FBBF24",
+  "ISO": "#F87171",
+  "CAJONES": "#FB923C",
+  "COPIAPO": "#94A3B8",
+  "GUIA": "#CBD5E1",
+  "TUCUMAN": "#C084FC",
+  "HIERRO": "#78716C",
+  "POTASIO": "#E879F9",
+  "CLORURO": "#2DD4BF",
+  "BARIO": "#FCA5A5",
+  "CAÑOS": "#FDBA74",
+  "TUBOS DHL": "#FDBA74",
+  "MEMBRANA": "#FACC15",
+  "MODULO": "#818CF8",
+  "PALLET": "#A8A29E"
+};
+
+window.FALLBACK_PALETTE = [
+  "#06B6D4","#EC4899","#84CC16","#F97316","#8B5CF6","#14B8A6",
+  "#F43F5E","#3B82F6","#EAB308","#10B981","#D946EF","#0EA5E9"
+];
+
+// ==========================================================================
+// SISTEMA DE RUTAS: arbol con tronco comun + 4 ramas segun eje geografico.
+// Cada segmento tiene axis ("EW" o "NS") y posiciones numericas.
+// Numero mayor EW = mas al Este; numero mayor NS = mas al Sur.
+// La flecha se calcula comparando la posicion de UBICACION vs DIA SGTE
+// dentro del mismo segmento o entre tronco y rama.
+// ==========================================================================
+
+// Tronco: Predio Antofagasta <-> Jama (eje Este-Oeste)
+// Orden: Predio/La Negra -> Antumalen -> Mantos Blancos -> Calama -> SPA -> Jama
+window.ROUTE_TRUNK = {
+  axis: "EW",
+  positions: {
+    "PREDIO ANTOFA.": 0,
+    "PREDIO ANTOFAGASTA": 0,
+    "LA NEGRA": 0,
+    "PUERTO ANGAMOS": 0,
+    "CARGA DHL MEMBRANAS": 0,
+    "DHL MEMBRANAS": 0,
+    "ANTUMALEN": 1,
+    "MANTOS BLANCOS": 1.5,
+    "CALAMA": 1.8,
+    "SAN PEDRO": 2,
+    "SAN PEDRO DE ATACAMA": 2,
+    "SPA": 2,
+    "JAMA": 3
+  }
+};
+
+// Rama sur (Puna/litio-soda): Jama -> Pocitos -> Fenix/Sal de Vida (eje Norte-Sur)
+// Pocitos-Jama, Pocitos-Fenix etc. se resuelven al primer lugar antes de llegar aqui,
+// pero los dejamos por si algun dia aparecen solos en DIA SGTE.
+window.ROUTE_BRANCH_SUR = {
+  axis: "NS",
+  positions: {
+    "JAMA": 0,
+    "POCITOS": 1,
+    "FENIX": 2,
+    "SAL DE VIDA": 2
+  }
+};
+
+// Rama Jujuy/Amonio: Jama -> Susques -> Purmamarca -> Predio Palpala (eje Este-Oeste)
+window.ROUTE_BRANCH_JUJUY = {
+  axis: "EW",
+  positions: {
+    "JAMA": 3,
+    "SUSQUES": 3.5,
+    "PURMAMARCA": 4,
+    "PREDIO PALPALA": 5,
+    "PALPALA": 5
+  }
+};
+
+// Ramal Guemes: Predio Palpala <-> Aduana Guemes (eje Norte-Sur, Palpala al norte)
+window.ROUTE_BRANCH_GUEMES = {
+  axis: "NS",
+  positions: {
+    "PREDIO PALPALA": 0,
+    "PALPALA": 0,
+    "ADUANA GUEMES": 1,
+    "ADUANA GUEMES.": 1
+  }
+};
+
+// Ruta ISO Galpon-SJ: Predio Palpala -> Galpon/El Galpon -> Tucuman -> La Rioja -> Patquia -> Caucete -> San Juan -> Campanario
+// Eje Norte-Sur: Palpala al norte, San Juan/Campanario al sur
+window.ROUTE_BRANCH_ISO_SJ = {
+  axis: "NS",
+  positions: {
+    "PREDIO PALPALA": 0,
+    "PALPALA": 0,
+    "GALPON": 1,
+    "EL GALPON": 1,
+    "GOB. GARMENDIA": 1.5,
+    "EL TUNAL": 1.8,
+    "TUCUMAN": 2,
+    "FAIMALLA": 2.1,
+    "LA COCHA": 2.3,
+    "CHUMBICHA": 2.5,
+    "LA RIOJA": 3,
+    "PATQUIA": 3.5,
+    "CAUCETE": 4,
+    "SAN JUAN": 4.5,
+    "PREDIO SJ": 4.5,
+    "CAMPANARIO": 5
+  }
+};
+
+// Ruta ISO Galpon-Rafaela: Predio Palpala -> Galpon/El Galpon -> Metan -> Stgo del Estero -> Rafaela/Sunchales
+// Eje Norte-Sur: Palpala al norte, Rafaela al sur
+window.ROUTE_BRANCH_ISO_RAFAELA = {
+  axis: "NS",
+  positions: {
+    "PREDIO PALPALA": 0,
+    "PALPALA": 0,
+    "GALPON": 1,
+    "EL GALPON": 1,
+    "METAN": 1.5,
+    "R. FRONTERA": 1.8,
+    "R. DE LA FRONTERA": 1.8,
+    "ROSARIO FRONTERA": 1.8,
+    "J.V. GONZALEZ.": 2,
+    "J.V GONZALEZ": 2,
+    "J. V GONZALEZ": 2,
+    "STGO DEL ESTERO": 2.5,
+    "SANTIAGO DEL ESTERO": 2.5,
+    "CERES": 3,
+    "SUNCHALES": 3.5,
+    "RAFAELA": 4
+  }
+};
+
+// Ruta DHL: viaje por la costa de Chile de sur a norte, luego hacia Rincon Salta.
+// Eje Norte-Sur: numero mayor = mas al norte (mas cerca de Rincon/meta).
+// flecha N (arriba) = avanza hacia Antofagasta/Rincon, flecha S (abajo) = vuelve hacia Santiago.
+window.ROUTE_BRANCH_DHL = {
+  axis: "NS",
+  positions: {
+    "SANTIAGO": 0,
+    "SANTIAGO DE CHILE": 0,
+    "STGO": 0,
+    "NOVICIADO": 0.5,
+    "RUNQUE": 0.8,
+    "NOGALES": 1,
+    "LA LIGUA": 1.5,
+    "LOS VILOS": 2,
+    "COQUIMBO": 2.5,
+    "LA SERENA": 2.5,
+    "VALLENAR": 3,
+    "COPIAPO": 3.5,
+    "CHAÑARAL": 4,
+    "TALTAL": 4.5,
+    "PAPOSO": 4.8,
+    "ANTOFAGASTA": 5,
+    "PREDIO ANTOFA.": 5,
+    "PREDIO ANTOFAGASTA": 5,
+    "LA NEGRA": 5,
+    "SAN PEDRO": 5.5,
+    "SAN PEDRO DE ATACAMA": 5.5,
+    "SPA": 5.5,
+    "RINCON": 6,
+    "RINCON-SICO": 6
+  }
+};
+
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- estado global ----------
+  var state = {
+    byDate: {},                // "DD-MM-AAAA" -> [{vehiculo,semi,chofer,estado,ubicacion,obs}, ...]
+    dateOrder: [],             // fechas disponibles, mas reciente al final
+    currentDate: null,
+    rows: [],                  // filas activas (de la fecha seleccionada)
+    locCoords: {},
+    stateColors: {},
+    hiddenStates: {},          // ESTADO -> true si oculto
+    hiddenObs: {},             // OBSERVACION (texto exacto) -> true si oculto
+    unmatched: [],
+    map: null,
+    markersLayer: null,
+    theme: "dark",
+    unitFilter: "",            // patente parcial para filtrar (ej: "HSHS20")
+    newlyArrived: {}           // vehiculo normalizado -> true, para los recien llegados al predio
+  };
+
+  Object.keys(window.BASE_LOCATIONS).forEach(function(k){ state.locCoords[k] = window.BASE_LOCATIONS[k]; });
+  Object.keys(window.DEFAULT_STATE_COLORS).forEach(function(k){ state.stateColors[k] = window.DEFAULT_STATE_COLORS[k]; });
+
+  // ---------- helpers ----------
+  function norm(s){
+    if(s===null||s===undefined) return "";
+    return String(s).trim().toUpperCase()
+      .replace(/\s+/g," ")
+      .replace(/Á/g,"A").replace(/É/g,"E").replace(/Í/g,"I").replace(/Ó/g,"O").replace(/Ú/g,"U");
+  }
+  function stripAccentsUpper(s){
+    if(s===null||s===undefined) return "";
+    return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim();
+  }
+  function titleCase(s){
+    if(!s) return s;
+    return s.toLowerCase().split(/(\s+|-)/).map(function(word){
+      if(word==="" || /^[\s-]+$/.test(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join("");
+  }
+  function colorForState(estNorm){
+    if(state.stateColors[estNorm]) return state.stateColors[estNorm];
+    var palette = window.FALLBACK_PALETTE;
+    var sum = 0;
+    for(var i=0;i<estNorm.length;i++) sum += estNorm.charCodeAt(i);
+    var color = palette[sum % palette.length];
+    state.stateColors[estNorm] = color;
+    return color;
+  }
+  function findCoords(ubicNorm){
+    return state.locCoords[ubicNorm] || null;
+  }
+  // Para ubicaciones compuestas tipo "FENIX-POCITOS" o "POCITOS-JAMA", toma el PRIMER lugar
+  // del par (antes del guion) para posicionar en el mapa y calcular la ruta.
+  // lookupFn opcional: funcion adicional de verificacion (para las tablas de ruta donde el
+  // nombre completo puede no aparecer aunque el primer trozo si).
+  function resolveFirstPlace(nameNorm, lookupFn){
+    if(!nameNorm) return nameNorm;
+    var checkFn = lookupFn || function(n){ return !!state.locCoords[n]; };
+    if(checkFn(nameNorm)) return nameNorm;
+    var dashIdx = nameNorm.indexOf("-");
+    if(dashIdx > 0){
+      var first = nameNorm.substring(0, dashIdx).trim();
+      if(first) return first; // devolver el primer trozo aunque no este confirmado en locCoords
+    }
+    return nameNorm;
+  }
+  // version para las tablas de ruta: intenta resolver contra un segmento de posiciones dado
+  function resolveForSegment(nameNorm, segPositions){
+    if(!nameNorm) return nameNorm;
+    if(segPositions[nameNorm] !== undefined) return nameNorm;
+    var dashIdx = nameNorm.indexOf("-");
+    if(dashIdx > 0){
+      var first = nameNorm.substring(0, dashIdx).trim();
+      if(first && segPositions[first] !== undefined) return first;
+    }
+    return nameNorm;
+  }
+  function segmentDirection(cur, dest, segment){
+    var pos = segment.positions || {};
+    // resolver primer lugar dentro de este segmento (por si viene como "FENIX-POCITOS")
+    var c = resolveForSegment(cur, pos);
+    var d = resolveForSegment(dest, pos);
+    var posCur = pos[c];
+    var posDest = pos[d];
+    if(posCur===undefined || posDest===undefined) return undefined;
+    if(posCur===posDest) return null;
+    var increasing = posDest > posCur;
+    if(segment.axis === "EW") return increasing ? "E" : "W";
+    if(segment.axis === "NS") return increasing ? "S" : "N";
+    return null;
+  }
+  function getDirectionIcon(row){
+    // resolver primer lugar en ubicaciones compuestas tipo "FENIX-POCITOS"
+    var dest = resolveFirstPlace(norm(row.diaSgte));
+    var cur = resolveFirstPlace(norm(row.ubicacion));
+    if(!dest || !cur || dest===cur) return null;
+
+    // 1) tronco (prioridad maxima: ambos en el tronco -> eje EW)
+    var trunkResult = segmentDirection(cur, dest, window.ROUTE_TRUNK);
+    if(trunkResult !== undefined) return trunkResult;
+
+    // 2) ramal Guemes (Palpala <-> Guemes, NS)
+    var guemesResult = segmentDirection(cur, dest, window.ROUTE_BRANCH_GUEMES);
+    if(guemesResult !== undefined) return guemesResult;
+
+    // 3) tronco + rama sur Chile-Puna (NS: Jama->Pocitos->Fenix/SdV)
+    var surResult = segmentDirection(cur, dest, mergeSegment(window.ROUTE_TRUNK, window.ROUTE_BRANCH_SUR));
+    if(surResult !== undefined) return surResult;
+
+    // 4) tronco + rama Jujuy/Amonio (EW: Jama->Susques->Purmamarca->Palpala)
+    var jujuyResult = segmentDirection(cur, dest, mergeSegment(window.ROUTE_TRUNK, window.ROUTE_BRANCH_JUJUY));
+    if(jujuyResult !== undefined) return jujuyResult;
+
+    // 5) Ruta ISO Galpon-SJ (NS: Palpala->Galpon->Tucuman->LaRioja->Patquia->Caucete->SJ->Campanario)
+    var isoSjResult = segmentDirection(cur, dest, window.ROUTE_BRANCH_ISO_SJ);
+    if(isoSjResult !== undefined) return isoSjResult;
+
+    // 6) Ruta ISO Galpon-Rafaela (NS: Palpala->Galpon->Metan->StgoDelEstero->Rafaela)
+    var isoRafResult = segmentDirection(cur, dest, window.ROUTE_BRANCH_ISO_RAFAELA);
+    if(isoRafResult !== undefined) return isoRafResult;
+
+    // 7) Ruta DHL (NS: Santiago->LaLigua->LosVilos->Vallenar->Copiapo->Antofagasta->SPA->Rincon)
+    var dhlResult = segmentDirection(cur, dest, window.ROUTE_BRANCH_DHL);
+    if(dhlResult !== undefined) return dhlResult;
+
+    return null;
+  }
+  function mergeSegment(trunk, branch){
+    var merged = { axis: branch.axis, positions: {} };
+    Object.keys(trunk.positions).forEach(function(k){ merged.positions[k] = trunk.positions[k]; });
+    Object.keys(branch.positions).forEach(function(k){ merged.positions[k] = branch.positions[k]; });
+    return merged;
+  }
+  function esc(s){
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function cleanCell(v){
+    if(v===null||v===undefined) return "";
+    return String(v).replace(/\u00a0/g,"").trim();
+  }
+
+  // ---------- parsear hojas crudas (array de filas, cada fila array de celdas) en filas de camiones ----------
+  function rowsFromSheetMatrix(matrix){
+    if(!matrix || matrix.length===0) return [];
+    var headerIdx = -1, colmap = {};
+    for(var i=0;i<Math.min(matrix.length,5);i++){
+      var row = matrix[i];
+      if(!row) continue;
+      var cells = row.map(function(c){return stripAccentsUpper(cleanCell(c));});
+      var hasHeader = cells.some(function(c){return c.indexOf("VEHICULO")>=0;});
+      if(hasHeader){
+        headerIdx = i;
+        cells.forEach(function(c, idx){
+          if(c.indexOf("VEHICULO")>=0 && colmap.vehiculo===undefined) colmap.vehiculo = idx;
+          else if(c === "SEMI") colmap.semi = idx;
+          else if(c === "CHOFER") colmap.chofer = idx;
+          else if(c === "ESTADO") colmap.estado = idx;
+          else if(c.indexOf("PERNOCTE")>=0) colmap.pernocte = idx;
+          else if(c.indexOf("UBICACION")>=0) colmap.ubicacion = idx;
+          else if((c.indexOf("DIA SGTE")===0 || c.indexOf("DIA SIGUIENTE")===0) && colmap.diasgte===undefined) colmap.diasgte = idx;
+          else if(c.indexOf("OBSERVACION")>=0 && colmap.obs===undefined) colmap.obs = idx;
+        });
+        break;
+      }
+    }
+    if(headerIdx===-1 || colmap.ubicacion===undefined || colmap.estado===undefined) return [];
+
+    var rows = [];
+    for(var r=headerIdx+1; r<matrix.length; r++){
+      var row2 = matrix[r];
+      if(!row2) continue;
+      var get = function(key){
+        var idx = colmap[key];
+        if(idx===undefined || idx>=row2.length) return "";
+        return cleanCell(row2[idx]);
+      };
+      var estado = get("estado");
+      var ubicacion = get("ubicacion");
+      var vehiculo = get("vehiculo");
+      if(!estado && !ubicacion) continue;
+      if(stripAccentsUpper(estado)==="ESTADO") continue;
+      if(!vehiculo) continue; // sin patente de tracto (solo semi suelta) -> no se muestra
+      rows.push({
+        vehiculo: vehiculo,
+        semi: get("semi"),
+        chofer: get("chofer") || "SIN CHOFER",
+        estado: estado || "VACIO",
+        ubicacion: ubicacion,
+        pernocte: get("pernocte"),
+        diaSgte: get("diasgte"),
+        obs: get("obs")
+      });
+    }
+    return rows;
+  }
+
+  // ---------- parser de texto pegado (fallback manual) ----------
+  function splitLine(line){
+    if(line.indexOf("\t") !== -1) return line.split("\t");
+    return line.split(/\s{2,}/);
+  }
+  function parsePaste(text){
+    var lines = text.replace(/\r/g,"").split("\n").filter(function(l){return l.trim().length>0;});
+    if(lines.length < 2) throw new Error("Pegá al menos la fila de encabezados y una fila de datos.");
+    var matrix = lines.map(splitLine);
+    var rows = rowsFromSheetMatrix(matrix);
+    if(rows.length===0){
+      throw new Error("No pude identificar las columnas ESTADO y UBICACIÓN. Asegurate de incluir la fila de encabezados de la planilla.");
+    }
+    return rows;
+  }
+
+  // ---------- carga de datos embebidos ----------
+  function parseDateKey(k){
+    var m = k.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if(!m) return 0;
+    return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1])).getTime();
+  }
+  function loadEmbedded(){
+    var raw = window.EMBEDDED_DATA || {};
+    var keys = Object.keys(raw);
+    keys.sort(function(a,b){ return parseDateKey(a) - parseDateKey(b); });
+    keys.forEach(function(k){ state.byDate[k] = raw[k]; });
+    state.dateOrder = keys;
+  }
+  function formatDateLabel(k){
+    var m = k.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if(!m) return k;
+    var dias = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    var d = new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
+    return titleCase(dias[d.getDay()]) + " " + m[1] + "/" + m[2] + "/" + m[3];
+  }
+
+  // ---------- selector de día ----------
+  function renderDaySelect(){
+    var sel = document.getElementById("daySelect");
+    sel.innerHTML = "";
+    state.dateOrder.forEach(function(k){
+      var opt = document.createElement("option");
+      opt.value = k;
+      opt.textContent = formatDateLabel(k);
+      sel.appendChild(opt);
+    });
+    if(state.currentDate && state.dateOrder.indexOf(state.currentDate)>=0){
+      sel.value = state.currentDate;
+    } else if(state.dateOrder.length>0){
+      sel.value = state.dateOrder[state.dateOrder.length-1];
+    }
+  }
+
+  // Predios donde se detectan "recién llegados"
+  var PREDIOS = ["PREDIO ANTOFA.", "PREDIO ANTOFAGASTA", "LA NEGRA", "PREDIO PALPALA", "PALPALA"];
+
+  function computeNewlyArrived(currentDate){
+    state.newlyArrived = {};
+    var currentIdx = state.dateOrder.indexOf(currentDate);
+    if(currentIdx <= 0) return; // no hay día anterior
+    var prevDate = state.dateOrder[currentIdx - 1];
+    var prevRows = state.byDate[prevDate] || [];
+
+    // mapa de vehiculo -> ubicacion del dia anterior
+    var prevUbic = {};
+    prevRows.forEach(function(r){
+      if(r.vehiculo){
+        prevUbic[norm(r.vehiculo)] = norm(resolveFirstPlace(norm(r.ubicacion)));
+      }
+    });
+
+    var currentRows = state.byDate[currentDate] || [];
+    currentRows.forEach(function(r){
+      if(!r.vehiculo) return;
+      var vNorm = norm(r.vehiculo);
+      var curUbic = norm(resolveFirstPlace(norm(r.ubicacion)));
+      // solo marcar si el predio actual es uno de los predios a vigilar
+      if(PREDIOS.indexOf(curUbic) === -1) return;
+      // solo marcar si existia ayer
+      if(prevUbic[vNorm] === undefined) return;
+      // solo marcar si ayer NO estaba en ese mismo predio
+      if(PREDIOS.indexOf(prevUbic[vNorm]) !== -1) return;
+      state.newlyArrived[vNorm] = true;
+    });
+  }
+
+  function selectDate(k){
+    state.currentDate = k;
+    var rows = state.byDate[k] || [];
+    state.rows = rows;
+    computeNewlyArrived(k);
+    var unmatched = computeUnmatched(rows);
+    renderUnmatched();
+    renderLegend();
+    renderObsList();
+    renderUnitSelect();
+    renderMap();
+    updateUnitFilterStatus();
+    document.getElementById("dateBadgeText").textContent = formatDateLabel(k);
+    if(unmatched.length>0){
+      setStatus(rows.length+" camiones · "+unmatched.length+" ubicación(es) sin coordenadas — completalas abajo.", "err");
+    } else {
+      setStatus(rows.length+" camiones ubicados correctamente.", "ok");
+    }
+  }
+
+  function computeUnmatched(rows){
+    var unmatched = {};
+    rows.forEach(function(row){
+      var u = resolveFirstPlace(norm(row.ubicacion));
+      if(!u) return;
+      if(!findCoords(u)) unmatched[u] = (unmatched[u]||0)+1;
+    });
+    state.unmatched = Object.keys(unmatched).sort(function(a,b){return unmatched[b]-unmatched[a];});
+    return state.unmatched;
+  }
+
+  // ---------- UI: unmatched box ----------
+  function renderUnmatched(){
+    var box = document.getElementById("unmatchedBox");
+    var list = document.getElementById("unmatchedList");
+    list.innerHTML = "";
+    if(state.unmatched.length===0){ box.style.display = "none"; return; }
+    box.style.display = "block";
+    state.unmatched.forEach(function(name){
+      var row = document.createElement("div");
+      row.className = "unmatched-row";
+      row.innerHTML =
+        '<span>'+esc(titleCase(name))+'</span>'+
+        '<input type="text" placeholder="lat" data-name="'+esc(name)+'" data-field="lat">'+
+        '<input type="text" placeholder="lng" data-name="'+esc(name)+'" data-field="lng">';
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("btnSaveUnmatched").addEventListener("click", function(){
+    var inputs = document.querySelectorAll("#unmatchedList input");
+    var byName = {};
+    inputs.forEach(function(inp){
+      var name = inp.getAttribute("data-name");
+      var field = inp.getAttribute("data-field");
+      byName[name] = byName[name] || {};
+      byName[name][field] = inp.value.trim();
+    });
+    var saved = 0, missing = [];
+    Object.keys(byName).forEach(function(name){
+      var lat = parseFloat(byName[name].lat);
+      var lng = parseFloat(byName[name].lng);
+      if(!isNaN(lat) && !isNaN(lng)){ state.locCoords[name] = [lat, lng]; saved++; }
+      else { missing.push(name); }
+    });
+    if(saved>0) setStatus(saved+" ubicación(es) guardada(s). Regenerando mapa...", "ok");
+    if(missing.length>0) setStatus("Faltan coordenadas para: "+missing.map(titleCase).join(", "), "err");
+    computeUnmatched(state.rows);
+    renderUnmatched();
+    renderLegend();
+    renderObsList();
+    renderMap();
+  });
+
+  function setStatus(msg, kind){
+    var el = document.getElementById("statusMsg");
+    el.textContent = msg;
+    el.className = kind || "";
+  }
+  function setFileStatus(msg, kind){
+    var el = document.getElementById("fileStatus");
+    el.textContent = msg;
+    el.className = kind || "";
+  }
+
+  // ---------- leyenda / filtros ----------
+  function renderLegend(){
+    var wrap = document.getElementById("legendList");
+    wrap.innerHTML = "";
+    var counts = {};
+    state.rows.forEach(function(r){
+      var e = norm(r.estado);
+      counts[e] = (counts[e]||0)+1;
+    });
+    var states = Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
+    document.getElementById("sumTrucks").textContent = state.rows.length;
+    var locSet = {};
+    state.rows.forEach(function(r){ locSet[norm(r.ubicacion)] = true; });
+    document.getElementById("sumLocs").textContent = Object.keys(locSet).length;
+
+    states.forEach(function(est){
+      var color = colorForState(est);
+      var item = document.createElement("div");
+      item.className = "legend-item" + (state.hiddenStates[est] ? " off" : "");
+      item.innerHTML =
+        '<input type="color" class="legend-color-input" value="'+color+'" data-state="'+est+'">'+
+        '<span class="legend-dot" style="background:'+color+'"></span>'+
+        '<span class="legend-label" style="flex:1">'+esc(titleCase(est))+'</span>'+
+        '<span class="count">'+counts[est]+'</span>';
+      item.querySelector(".legend-label").addEventListener("click", function(){
+        state.hiddenStates[est] = !state.hiddenStates[est];
+        renderLegend();
+        renderMap();
+      });
+      var colorInput = item.querySelector(".legend-color-input");
+      colorInput.addEventListener("input", function(e){
+        state.stateColors[est] = e.target.value;
+        renderLegend();
+        renderMap();
+      });
+      colorInput.addEventListener("click", function(e){ e.stopPropagation(); });
+      wrap.appendChild(item);
+    });
+  }
+
+  function renderObsList(){
+    var wrap = document.getElementById("obsList");
+    wrap.innerHTML = "";
+    var counts = {};
+    state.rows.forEach(function(r){
+      var o = (r.obs||"").trim();
+      if(!o || o==="-") return;
+      counts[o] = (counts[o]||0)+1;
+    });
+    var obsKeys = Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];});
+    if(obsKeys.length===0){
+      wrap.innerHTML = '<div class="hint" style="margin:0;">Sin observaciones registradas este día.</div>';
+      return;
+    }
+    obsKeys.forEach(function(obsText){
+      var item = document.createElement("div");
+      item.className = "obs-item" + (state.hiddenObs[obsText] ? " off" : "");
+      item.innerHTML =
+        '<span class="check">'+(state.hiddenObs[obsText] ? "" : "✓")+'</span>'+
+        '<span class="obs-text" title="'+esc(obsText)+'">'+esc(obsText)+'</span>'+
+        '<span class="count">'+counts[obsText]+'</span>';
+      item.addEventListener("click", function(){
+        state.hiddenObs[obsText] = !state.hiddenObs[obsText];
+        renderObsList();
+        renderMap();
+      });
+      wrap.appendChild(item);
+    });
+  }
+
+  document.getElementById("btnResetEstado").addEventListener("click", function(){
+    state.hiddenStates = {};
+    renderLegend();
+    renderMap();
+  });
+  document.getElementById("btnHideEstado").addEventListener("click", function(){
+    var counts = {};
+    state.rows.forEach(function(r){ counts[norm(r.estado)] = true; });
+    Object.keys(counts).forEach(function(e){ state.hiddenStates[e] = true; });
+    renderLegend();
+    renderMap();
+  });
+  document.getElementById("btnResetObs").addEventListener("click", function(){
+    state.hiddenObs = {};
+    renderObsList();
+    renderMap();
+  });
+  document.getElementById("btnHideObs").addEventListener("click", function(){
+    var counts = {};
+    state.rows.forEach(function(r){
+      var o = (r.obs||"").trim();
+      if(o && o !== "-") counts[o] = true;
+    });
+    Object.keys(counts).forEach(function(o){ state.hiddenObs[o] = true; });
+    renderObsList();
+    renderMap();
+  });
+
+  // ---------- mapa ----------
+  var TILE_URLS = {
+    dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+  };
+  function ensureMap(){
+    if(state.map) return state.map;
+    var map = L.map("map", { zoomControl: true, attributionControl: true }).setView([-25.5, -67.5], 6);
+    state.tileLayer = L.tileLayer(TILE_URLS[state.theme], {
+      attribution: '&copy; OpenStreetMap, &copy; CARTO',
+      maxZoom: 18
+    }).addTo(map);
+    state.map = map;
+    state.markersLayer = L.layerGroup().addTo(map);
+    state.labelsLayer = L.layerGroup().addTo(map);
+    return map;
+  }
+  function setTheme(theme){
+    state.theme = theme;
+    document.body.classList.toggle("light", theme==="light");
+    var icon = document.querySelector("#themeToggle i");
+    var label = document.getElementById("themeToggleLabel");
+    if(theme==="light"){
+      icon.className = "ti ti-moon";
+      label.textContent = "Modo oscuro";
+    } else {
+      icon.className = "ti ti-sun";
+      label.textContent = "Modo claro";
+    }
+    if(state.map && state.tileLayer){
+      state.map.removeLayer(state.tileLayer);
+      state.tileLayer = L.tileLayer(TILE_URLS[theme], {
+        attribution: '&copy; OpenStreetMap, &copy; CARTO',
+        maxZoom: 18
+      }).addTo(state.map);
+      state.tileLayer.bringToBack();
+    }
+  }
+  document.getElementById("themeToggle").addEventListener("click", function(){
+    setTheme(state.theme==="dark" ? "light" : "dark");
+  });
+
+  var DIRECTION_ARROWS = { E:"→", W:"←", N:"↑", S:"↓" };
+  function arrowHtml(direction){
+    if(!direction || !DIRECTION_ARROWS[direction]) return "";
+    return '<span class="dir-arrow dir-'+direction+'">'+DIRECTION_ARROWS[direction]+'</span>';
+  }
+  function makeClusterIcon(count, color, direction){
+    return L.divIcon({
+      className: "",
+      html: '<div class="cluster-badge" style="border-color:'+color+'">'+count+arrowHtml(direction)+'</div>',
+      iconSize: [34,34], iconAnchor: [17,17]
+    });
+  }
+  function makeTruckIcon(label, color, direction){
+    return L.divIcon({
+      className: "",
+      html: '<div class="truck-label" style="border-left:3px solid '+color+';">'+arrowHtml(direction)+label+'</div>',
+      iconSize: null, iconAnchor: [10,10]
+    });
+  }
+  function makePlaceLabelIcon(name){
+    return L.divIcon({
+      className: "",
+      html: '<div class="place-label">'+esc(titleCase(name))+'</div>',
+      iconSize: null, iconAnchor: [0, 26]
+    });
+  }
+
+  function renderMap(){
+    var map = ensureMap();
+    state.markersLayer.clearLayers();
+    state.labelsLayer.clearLayers();
+
+    // aplicar filtros: estados ocultos, observaciones ocultas, y filtro de unidad
+    var visibleRows = state.rows.filter(function(r){
+      if(state.hiddenStates[norm(r.estado)]) return false;
+      var o = (r.obs||"").trim();
+      if(o && state.hiddenObs[o]) return false;
+      // filtro de unidad: si hay filtro, solo pasan las filas cuya patente coincide exactamente
+      if(state.unitFilter && (r.vehiculo||"").trim() !== state.unitFilter) return false;
+      return true;
+    });
+    document.getElementById("emptyState").style.display = state.rows.length===0 ? "block" : "none";
+
+    var groups = {};
+    visibleRows.forEach(function(r){
+      var u = resolveFirstPlace(norm(r.ubicacion));
+      if(!groups[u]) groups[u] = [];
+      groups[u].push(r);
+    });
+
+    var bounds = [];
+    Object.keys(groups).forEach(function(ubic){
+      var coords = findCoords(ubic);
+      if(!coords) return;
+      var list = groups[ubic];
+
+      // etiqueta de lugar, siempre visible, una sola por ubicacion
+      var labelMarker = L.marker(coords, { icon: makePlaceLabelIcon(ubic), interactive: false, zIndexOffset: 1000 });
+      labelMarker.addTo(state.labelsLayer);
+      bounds.push(coords);
+
+      // desglose por carga (estado), siempre calculado para el popup
+      var byEstado = {};
+      var estadoOrder = [];
+      list.forEach(function(r){
+        var e = norm(r.estado);
+        if(!byEstado[e]){ byEstado[e]=[]; estadoOrder.push(e); }
+        byEstado[e].push(r);
+      });
+
+      // siempre el mismo estilo de globo redondo con el numero de camiones (1, 2, 3...),
+      // incluso cuando hay un solo camion en el lugar; el detalle (chofer, patente, carga,
+      // direccion) queda disponible al hacer click, en el popup.
+      var dirSingle = list.length === 1 ? getDirectionIcon(list[0]) : null;
+      var badgeColor = estadoOrder.length === 1 ? colorForState(estadoOrder[0]) : "#9CA3AF";
+      var marker3 = L.marker(coords, { icon: makeClusterIcon(list.length, badgeColor, dirSingle) });
+      marker3.bindPopup(buildPopup(ubic, list, byEstado, estadoOrder));
+      marker3.addTo(state.markersLayer);
+    });
+
+    if(bounds.length>0){
+      try{ map.fitBounds(bounds, {padding:[60,60], maxZoom: 9}); }catch(e){}
+    }
+  }
+
+  function buildPopup(ubicNorm, list, byEstado, estadoOrder){
+    // contar recién llegados para mostrar badge en el titulo si aplica
+    var newCount = list.filter(function(r){ return state.newlyArrived[norm(r.vehiculo)]; }).length;
+    var titleExtra = newCount > 0 ? ' <span style="font-size:11px;color:#FBBF24;font-weight:600;">★ '+newCount+' nuevo'+(newCount>1?'s':'')+'</span>' : '';
+    var html = '<div class="popup-loc-title">'+esc(titleCase(ubicNorm))+' · '+list.length+' '+(list.length>1?'camiones':'camión')+titleExtra+'</div>';
+    if(byEstado && estadoOrder){
+      html += '<div style="font-size:11px;margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">';
+      estadoOrder.forEach(function(est){
+        var color = colorForState(est);
+        html += '<span style="background:'+color+'22;border:1px solid '+color+';border-radius:10px;padding:2px 8px;color:inherit;">'+
+                '<span class="dot" style="background:'+color+'"></span>'+esc(titleCase(est))+' · '+byEstado[est].length+'</span>';
+      });
+      html += '</div>';
+    }
+    html += '<div class="popup-truck-list"><table>';
+    list.forEach(function(r){
+      var color = colorForState(norm(r.estado));
+      var dir = getDirectionIcon(r);
+      var dirCell = dir ? arrowHtml(dir)+' '+esc(titleCase(r.diaSgte||"")) : "";
+      var isNew = state.newlyArrived[norm(r.vehiculo)];
+      var rowClass = isNew ? ' class="newly-arrived"' : '';
+      var newBadge = isNew ? '<span class="newly-arrived-badge" title="Llegó hoy al predio">★ nuevo</span>' : '';
+      html += '<tr'+rowClass+'><td><span class="dot" style="background:'+color+'"></span>'+esc(titleCase(r.chofer))+newBadge+'</td>'+
+              '<td>'+esc(r.vehiculo||"")+'</td>'+
+              '<td>'+esc(titleCase(r.estado))+'</td>'+
+              '<td style="font-size:11px;color:var(--text-dim);">'+dirCell+'</td></tr>';
+    });
+    html += '</table></div>';
+    return html;
+  }
+
+  // ---------- carga de Excel subido (SheetJS) ----------
+  function handleExcelFile(file){
+    setFileStatus("Leyendo "+file.name+"...", "");
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = new Uint8Array(e.target.result);
+        var wb = XLSX.read(data, {type:"array", cellDates:false});
+        var dateSheetRe = /^(\d{2})[.\-](\d{2})[.\-](\d{2,4})$/;
+        var newByDate = {};
+        var found = 0;
+        wb.SheetNames.forEach(function(sname){
+          var m = sname.trim().match(dateSheetRe);
+          if(!m) return;
+          var dd = m[1], mm = m[2], yyyy = m[3].length===2 ? "20"+m[3] : m[3];
+          var key = dd+"-"+mm+"-"+yyyy;
+          var ws = wb.Sheets[sname];
+          var matrix = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+          var rows = rowsFromSheetMatrix(matrix);
+          if(rows.length>0){ newByDate[key] = rows; found++; }
+        });
+        if(found===0){
+          setFileStatus("No encontré hojas con formato de día (ej: 24-06-2026) en ese archivo.", "err");
+          return;
+        }
+        Object.keys(newByDate).forEach(function(k){ state.byDate[k] = newByDate[k]; });
+        state.dateOrder = Object.keys(state.byDate).sort(function(a,b){return parseDateKey(a)-parseDateKey(b);});
+        renderDaySelect();
+        var lastKey = state.dateOrder[state.dateOrder.length-1];
+        document.getElementById("daySelect").value = lastKey;
+        selectDate(lastKey);
+        setFileStatus(found+" día(s) cargados desde "+file.name+". Mostrando el más reciente.", "ok");
+      }catch(err){
+        setFileStatus("No pude leer el archivo: "+err.message, "err");
+      }
+    };
+    reader.onerror = function(){ setFileStatus("Error al leer el archivo.", "err"); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  var dropZone = document.getElementById("dropZone");
+  var fileInput = document.getElementById("fileInput");
+  dropZone.addEventListener("click", function(){ fileInput.click(); });
+  fileInput.addEventListener("change", function(e){
+    if(e.target.files && e.target.files[0]) handleExcelFile(e.target.files[0]);
+  });
+  dropZone.addEventListener("dragover", function(e){ e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", function(){ dropZone.classList.remove("dragover"); });
+  dropZone.addEventListener("drop", function(e){
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) handleExcelFile(e.dataTransfer.files[0]);
+  });
+
+  // ---------- selector de día: evento ----------
+  document.getElementById("daySelect").addEventListener("change", function(e){
+    selectDate(e.target.value);
+  });
+
+  // ---------- pegado manual (fallback) ----------
+  document.getElementById("btnProcess").addEventListener("click", function(){
+    var text = document.getElementById("pasteArea").value;
+    if(!text.trim()){ setStatus("Pegá los datos de la planilla primero.", "err"); return; }
+    try{
+      var rows = parsePaste(text);
+      state.currentDate = null;
+      state.rows = rows;
+      var unmatched = computeUnmatched(rows);
+      renderUnmatched();
+      renderLegend();
+      renderObsList();
+      renderMap();
+      document.getElementById("dateBadgeText").textContent = "Datos pegados manualmente";
+      if(unmatched.length>0){
+        setStatus(rows.length+" camiones cargados. "+unmatched.length+" ubicación(es) sin coordenadas — completalas abajo.", "err");
+      } else {
+        setStatus(rows.length+" camiones ubicados correctamente.", "ok");
+      }
+    }catch(err){
+      setStatus(err.message, "err");
+    }
+  });
+
+  document.getElementById("btnClear").addEventListener("click", function(){
+    document.getElementById("pasteArea").value = "";
+    setStatus("", "");
+  });
+
+  // ---------- filtro de unidad (select con listado) ----------
+  function renderUnitSelect(){
+    var sel = document.getElementById("unitFilter");
+    var currentVal = sel.value; // conservar selección si sigue existiendo en el nuevo día
+    sel.innerHTML = '<option value="">— Todas las unidades —</option>';
+    // recopilar unidades del día actual, ordenadas
+    var unidades = [];
+    state.rows.forEach(function(r){
+      if(r.vehiculo && r.vehiculo.trim()){
+        unidades.push({ vehiculo: r.vehiculo.trim(), chofer: r.chofer||"" });
+      }
+    });
+    // ordenar por patente
+    unidades.sort(function(a,b){ return a.vehiculo.localeCompare(b.vehiculo); });
+    // deduplicar
+    var seen = {};
+    unidades.forEach(function(u){
+      if(seen[u.vehiculo]) return;
+      seen[u.vehiculo] = true;
+      var opt = document.createElement("option");
+      opt.value = u.vehiculo;
+      opt.textContent = u.vehiculo + (u.chofer && u.chofer !== "SIN CHOFER" ? "  —  " + u.chofer : "");
+      sel.appendChild(opt);
+    });
+    // restaurar selección si la unidad todavía existe en este día
+    if(currentVal && seen[currentVal]){
+      sel.value = currentVal;
+      state.unitFilter = currentVal;
+    } else {
+      sel.value = "";
+      state.unitFilter = "";
+    }
+  }
+
+  function updateUnitFilterStatus(){
+    var statusEl = document.getElementById("unitFilterStatus");
+    if(!state.unitFilter){ statusEl.textContent = ""; return; }
+    var matches = state.rows.filter(function(r){
+      return (r.vehiculo||"").trim() === state.unitFilter;
+    });
+    if(matches.length === 0){
+      statusEl.textContent = "No encontrada en este día.";
+      statusEl.style.color = "var(--danger)";
+    } else {
+      var ubic = resolveFirstPlace(norm(matches[0].ubicacion));
+      statusEl.textContent = "Hoy en: " + titleCase(ubic);
+      statusEl.style.color = "var(--ok)";
+    }
+  }
+
+  document.getElementById("unitFilter").addEventListener("change", function(){
+    state.unitFilter = this.value;
+    renderMap();
+    updateUnitFilterStatus();
+  });
+  document.getElementById("btnClearUnit").addEventListener("click", function(){
+    var sel = document.getElementById("unitFilter");
+    sel.value = "";
+    state.unitFilter = "";
+    renderMap();
+    updateUnitFilterStatus();
+  });
+
+  // ---------- sidebar toggle ----------
+  function toggleSidebar(){
+    var sidebar = document.getElementById("sidebar");
+    var btn = document.getElementById("btnToggleSidebar");
+    var app = document.getElementById("app");
+    var collapsed = sidebar.classList.toggle("collapsed");
+    app.classList.toggle("sidebar-collapsed", collapsed);
+    btn.textContent = collapsed ? "▶" : "◀";
+    btn.title = collapsed ? "Mostrar panel" : "Minimizar panel";
+    // refrescar el mapa para que ocupe el nuevo ancho
+    setTimeout(function(){ if(state.map) state.map.invalidateSize(); }, 210);
+  }
+  document.getElementById("btnToggleSidebar").addEventListener("click", toggleSidebar);
+  document.getElementById("sidebarFloatBtn").addEventListener("click", toggleSidebar);
+
+  // ---------- tabs ----------
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".tab-btn").forEach(function(b){b.classList.remove("active");});
+      document.querySelectorAll(".tab-panel").forEach(function(p){p.classList.remove("active");});
+      btn.classList.add("active");
+      document.getElementById("tab-"+btn.getAttribute("data-tab")).classList.add("active");
+    });
+  });
+
+  // ---------- init ----------
+  var GITHUB_BASE = "https://monitoreovt28-art.github.io/flota-status/";
+  var GITHUB_EXCEL_URL = GITHUB_BASE + "status1.xlsx";
+  var GITHUB_LOCATIONS_URL = GITHUB_BASE + "locations.json";
+
+  ensureMap();
+  setTheme(state.theme);
+
+  // Carga las coordenadas desde locations.json del repo.
+  // Las que vengan del repo PISAN las embebidas — así corregir una coordenada
+  // en GitHub se ve reflejado inmediatamente sin tocar el HTML.
+  function loadLocationsFromGithub(){
+    return fetch(GITHUB_LOCATIONS_URL, { cache: "no-cache" })
+      .then(function(res){ if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
+      .then(function(json){
+        Object.keys(json).forEach(function(k){
+          if(k.startsWith("_")) return; // ignorar claves de metadata/instrucciones
+          state.locCoords[k] = json[k];
+        });
+        console.log("locations.json cargado desde GitHub:", Object.keys(json).length, "ubicaciones.");
+      })
+      .catch(function(err){
+        console.warn("No se pudo cargar locations.json:", err.message, "— usando coordenadas embebidas.");
+      });
+  }
+
+  // Carga el Excel desde GitHub y popula state.byDate
+  function loadExcelFromGithub(){
+    return fetch(GITHUB_EXCEL_URL, { cache: "no-cache" })
+      .then(function(res){ if(!res.ok) throw new Error("HTTP "+res.status); return res.arrayBuffer(); })
+      .then(function(buffer){
+        var data = new Uint8Array(buffer);
+        var wb = XLSX.read(data, {type:"array", cellDates:false});
+        var dateSheetRe = /^(\d{2})[.\-](\d{2})[.\-](\d{2,4})$/;
+        var found = 0;
+        wb.SheetNames.forEach(function(sname){
+          var m = sname.trim().match(dateSheetRe);
+          if(!m) return;
+          var dd=m[1], mm=m[2], yyyy=m[3].length===2?"20"+m[3]:m[3];
+          var key=dd+"-"+mm+"-"+yyyy;
+          var ws=wb.Sheets[sname];
+          var matrix=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:""});
+          var rows=rowsFromSheetMatrix(matrix);
+          if(rows.length>0){ state.byDate[key]=rows; found++; }
+        });
+        if(found===0) throw new Error("Sin hojas válidas en el Excel");
+        return found;
+      });
+  }
+
+  function initFromGithub(){
+    setStatus('<span style="font-size:11px;">⏳ Cargando datos desde el repositorio...</span>', "");
+
+    // Cargar locations y Excel en paralelo
+    Promise.all([loadLocationsFromGithub(), loadExcelFromGithub()])
+      .then(function(results){
+        var found = results[1];
+        state.dateOrder = Object.keys(state.byDate).sort(function(a,b){return parseDateKey(a)-parseDateKey(b);});
+        renderDaySelect();
+        var lastKey = state.dateOrder[state.dateOrder.length-1];
+        document.getElementById("daySelect").value = lastKey;
+        selectDate(lastKey);
+        document.getElementById("dataSourceHint").textContent =
+          found+" día(s) cargados desde el repositorio. Mostrando el más reciente.";
+        document.getElementById("dataSourceHint").style.color = "var(--ok)";
+        setStatus("", "");
+      })
+      .catch(function(err){
+        // Fallback: usar datos embebidos
+        console.warn("Error al cargar desde GitHub:", err.message, "— usando datos embebidos.");
+        loadEmbedded();
+        renderDaySelect();
+        if(state.dateOrder.length>0){
+          selectDate(state.dateOrder[state.dateOrder.length-1]);
+        } else {
+          renderLegend();
+          renderObsList();
+        }
+        document.getElementById("dataSourceHint").textContent =
+          "Datos cargados desde el Excel de status (embebido).";
+        setStatus("", "");
+      });
+  }
+
+  initFromGithub();
+})();
+
+</script>
+</body>
+</html>
